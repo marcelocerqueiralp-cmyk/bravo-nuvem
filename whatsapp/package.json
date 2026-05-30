@@ -1,0 +1,1 @@
+{"name":"whatsapp","version":"1.0.0","description":"Bravo Consignado CRM WhatsApp","main":"whatsapp_bravo.js","scripts":{"start":"node whatsapp_bravo.js"},"dependencies":{"whatsapp-web.js":"1.23.0","express":"4.18.0","cors":"2.8.5","qrcode-terminal":"0.12.0","qrcode":"1.5.0","sqlite3":"5.1.0"}}
