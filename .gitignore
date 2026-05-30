@@ -1,0 +1,7 @@
+node_modules/ 
+whatsapp/node_modules/ 
+whatsapp_session/ 
+data/ 
+consigplat.db 
+logs/ 
+__pycache__/ 

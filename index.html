@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bravo Consignado — CRM</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f5f5;--bg2:#ffffff;--bg3:#f0f0f0;--border:#e0e0e0;--text:#1a1a1a;--muted:#888;--blue:#1a1a1a;--warn:#c17f00;--danger:#cc2200;--success:#1a7a1a;--purple:#5a3ea0;--mono:'Courier New',monospace}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;display:flex;height:100vh;overflow:hidden;font-size:14px}
+.sidebar{width:210px;background:#1a1a1a;border-right:none;display:flex;flex-direction:column;flex-shrink:0}
+.logo{background:#000;border-bottom:1px solid #333;padding:20px 16px 16px}
+.logo h1{color:#fff;font-size:22px;font-weight:900;letter-spacing:-.01em;text-transform:lowercase}
+.logo h1 span{font-weight:300;font-size:13px;display:block;color:#aaa;margin-top:1px}
+nav{padding:8px 0;flex:1}
+.nav-sec{padding:12px 16px 4px;font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.08em}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:12px;color:#bbb;cursor:pointer;border-left:2px solid transparent}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.08)}
+.nav-item.active{color:#fff;border-left-color:#fff;background:rgba(255,255,255,.12)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.on{background:#4caf50;box-shadow:0 0 5px #4caf50}
+.dot.wrn{background:#ff9800}
+.dot.off{background:#666}
+.sidebar-foot{padding:12px 16px;border-top:1px solid #333;font-size:11px;color:#666}
+.sidebar-foot b{color:#4caf50}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#fff;border-bottom:2px solid #1a1a1a;padding:10px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.topbar-brand{font-size:15px;font-weight:900;letter-spacing:-.01em}
+.topbar-sep{color:#ccc}
+.topbar-page{font-size:12px;color:#888}
+.cpf-wrap{flex:1;max-width:400px;position:relative;margin:0 8px}
+.cpf-inp{width:100%;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:6px;padding:7px 80px 7px 14px;font-size:14px;color:#1a1a1a;font-family:var(--mono);outline:none}
+.cpf-inp:focus{border-color:#1a1a1a}
+.cpf-inp::placeholder{font-family:'Segoe UI',sans-serif;color:#888}
+.btn-search{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#1a1a1a;border:none;border-radius:4px;padding:4px 12px;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.topbar-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.btn-sm{background:transparent;border:1px solid #ddd;border-radius:5px;padding:5px 10px;color:#555;font-size:11px;cursor:pointer}
+.btn-sm:hover{color:#1a1a1a;border-color:#1a1a1a}
+.btn-green{background:rgba(26,122,26,.1);border:1px solid rgba(26,122,26,.4);border-radius:5px;padding:5px 12px;color:#1a7a1a;font-size:11px;cursor:pointer;font-weight:600}
+.base-info{font-size:11px;padding:4px 10px;background:#f5f5f5;border-radius:4px;border:1px solid #e0e0e0}
+.page{flex:1;overflow-y:auto;padding:20px;display:none}
+.page.active{display:block}
+.empty{text-align:center;padding:80px 20px;color:#aaa}
+.empty-ico{font-size:42px;opacity:.3;margin-bottom:10px}
+.empty h2{font-size:15px;font-weight:500;margin-bottom:6px}
+.loading{display:flex;align-items:center;gap:10px;padding:24px;color:#888;font-size:13px}
+.spinner{width:16px;height:16px;border:2px solid #e0e0e0;border-top-color:#1a1a1a;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.kpi label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px}
+.kpi .val{font-size:20px;font-weight:700}
+.green{color:#1a7a1a}.warn{color:#c17f00}.blue{color:#1a1a1a}.red{color:#cc2200}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.panel{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.panel-title{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.panel-title::after{content:'';flex:1;height:1px;background:#e8e8e8}
+.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.07)}
+.row:last-of-type{border-bottom:none}
+.row .key{font-size:11px;color:#888}
+.row .v{font-size:12px;font-weight:500;text-align:right}
+.mono{font-family:var(--mono);font-size:11px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.b-green{background:rgba(26,122,26,.1);color:#1a7a1a;border:1px solid rgba(26,122,26,.25)}
+.b-blue{background:rgba(26,26,26,.08);color:#1a1a1a;border:1px solid rgba(26,26,26,.2)}
+.b-warn{background:rgba(193,127,0,.1);color:#c17f00;border:1px solid rgba(193,127,0,.25)}
+.b-red{background:rgba(204,34,0,.1);color:#cc2200;border:1px solid rgba(204,34,0,.25)}
+.b-gray{background:rgba(0,0,0,.06);color:#888;border:1px solid rgba(0,0,0,.15)}
+.bar-labels{display:flex;justify-content:space-between;font-size:10px;color:#888;margin:10px 0 4px}
+.bar-track{height:6px;background:#f0f0f0;border-radius:3px;border:1px solid #e0e0e0;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#1a1a1a,#444);transition:width 1.2s ease}
+.table-panel{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:18px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.terminal{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:14px;font-family:var(--mono);font-size:11px;color:#adbac7;max-height:130px;overflow-y:auto;line-height:1.65}
+.lg-ok{color:#4caf50}.lg-inf{color:#58a6ff}.lg-wrn{color:#ff9800}.lg-err{color:#f85149}.lg-ts{color:#666}
+.extras-panel{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:18px;margin-bottom:16px}
+.extras-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-top:8px}
+.extra-card{background:#f5f5f5;border:1px solid #e8e8e8;border-radius:6px;padding:10px 12px}
+.extra-card .ec-key{font-size:10px;color:#888;margin-bottom:3px}
+.extra-card .ec-val{font-size:13px;font-weight:500;word-break:break-word}
+.base-stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.stat-card label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.stat-card .sval{font-size:18px;font-weight:700}
+.base-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search-inp{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:7px 14px;font-size:13px;color:#1a1a1a;outline:none;width:260px}
+.search-inp:focus{border-color:#1a1a1a}
+.filter-sel{background:#fff;border:1px solid #e0e0e0;border-radius:6px;padding:7px 10px;font-size:12px;color:#1a1a1a;outline:none;cursor:pointer}
+.data-table-wrap{background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+table.base-tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.base-tbl thead th{text-align:left;padding:8px 12px;color:#888;font-weight:500;border-bottom:1px solid #e8e8e8;white-space:nowrap;cursor:pointer}
+table.base-tbl tbody td{padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.06);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+table.base-tbl tbody tr:hover{background:rgba(0,0,0,.02);cursor:pointer}
+table.base-tbl tbody tr.obito td{color:#cc2200;text-decoration:line-through;opacity:.6}
+.pagination{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid #e8e8e8;font-size:12px;color:#888}
+.pagination button{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:4px 10px;color:#555;cursor:pointer;font-size:11px}
+.pagination button:disabled{opacity:.4;cursor:default}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead th{text-align:left;padding:7px 10px;color:#888;font-weight:500;border-bottom:1px solid #e8e8e8;white-space:nowrap}
+tbody td{padding:8px 10px;border-bottom:1px solid rgba(0,0,0,.07)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(0,0,0,.02)}
+.modal-bg{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal h2{font-size:15px;font-weight:600;margin-bottom:6px}
+.modal p{font-size:12px;color:#888;margin-bottom:20px}
+.drop-zone{border:2px dashed #e0e0e0;border-radius:8px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px}
+.drop-zone:hover{border-color:#1a1a1a}
+.drop-zone .ico{font-size:32px;margin-bottom:8px;opacity:.5}
+.drop-zone p{font-size:12px;color:#888}
+.drop-zone input{display:none}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.btn-cancel{background:transparent;border:1px solid #ddd;border-radius:5px;padding:7px 16px;color:#555;font-size:12px;cursor:pointer}
+.btn-ok{background:#1a1a1a;border:none;border-radius:5px;padding:7px 16px;color:#fff;font-size:12px;font-weight:600;cursor:pointer}
+.import-msg{font-size:12px;padding:10px 14px;border-radius:6px;margin-bottom:14px}
+.import-ok{background:rgba(26,122,26,.08);color:#1a7a1a;border:1px solid rgba(26,122,26,.2)}
+.import-err{background:rgba(204,34,0,.08);color:#cc2200;border:1px solid rgba(204,34,0,.2)}
+.new-tag{display:inline-flex;background:rgba(90,62,160,.08);color:#5a3ea0;border:1px solid rgba(90,62,160,.2);border-radius:12px;font-size:10px;padding:1px 7px;margin:2px}
+.detail-item{background:#f5f5f5;border:1px solid #e8e8e8;border-radius:6px;padding:8px 10px}
+.detail-item .dk{font-size:10px;color:#888;margin-bottom:2px}
+.detail-item .dv{font-size:12px;font-weight:500;word-break:break-all}
+.import-hist-item{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.import-hist-item .ih-info{flex:1}
+.import-hist-item .ih-file{font-size:13px;font-weight:500}
+.import-hist-item .ih-msg{font-size:11px;color:#888;margin-top:2px}
+.filtros-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:12px}
+.filtro-bloco{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:6px;padding:10px 12px}
+.filtro-bloco label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px}
+.filtro-bloco select,.filtro-bloco input{width:100%;background:#fff;border:1px solid #e0e0e0;border-radius:4px;padding:5px 8px;font-size:12px;color:#1a1a1a;outline:none}
+.seg-result{font-size:12px;color:#888;margin-top:8px;padding:8px 12px;background:#f5f5f5;border-radius:4px;border-left:3px solid #1a1a1a}
+.saved-seg-item{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.tag-filtro{display:inline-flex;background:rgba(26,26,26,.08);color:#1a1a1a;border:1px solid rgba(26,26,26,.2);border-radius:12px;font-size:10px;padding:2px 8px;margin:2px}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="logo"><h1>bravo<span>consignado</span></h1></div>
+  <nav>
+    <div class="nav-sec">Principal</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="irPara('dashboard',this)">Dashboard</div>
+    <div class="nav-item" id="nav-base" onclick="irPara('base',this)">Gestao da Base</div>
+    <div class="nav-item" id="nav-importacoes" onclick="irPara('importacoes',this)">Importacoes</div>
+    <div class="nav-item" id="nav-segmentos" onclick="irPara('segmentos',this)">Sub-planilhas</div>
+    <div class="nav-item" id="nav-oportunidades" onclick="irPara('oportunidades',this)">Oportunidades</div>
+    <div class="nav-item" id="nav-whatsapp" onclick="irPara('whatsapp',this)">WhatsApp</div>
+    <div class="nav-item" id="nav-leads" onclick="irPara('leads',this)">Leads</div>
+    <div class="nav-sec">Robos</div>
+    <div class="nav-item" id="nav-robos" onclick="irPara('robos',this)"><div class="dot on"></div>ConsigLog Bot</div>
+    <div class="nav-item" onclick="irPara('robos',this)"><div class="dot wrn"></div>INSS Scraper</div>
+    <div class="nav-item" onclick="irPara('robos',this)"><div class="dot off"></div>Webhook API</div>
+    <div class="nav-sec">Sistema</div>
+    <div class="nav-item" id="nav-config" onclick="irPara('config',this)">Configuracoes</div>
+  </nav>
+  <div class="sidebar-foot"><b>bot ativo</b><br><span id="base-stat" style="font-size:10px">Base: —</span><br><span style="font-size:9px;color:#555;margin-top:2px;display:block">Vitoria da Conquista - BA</span></div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <span class="topbar-brand">bravo <span style="font-weight:300">consignado</span></span>
+    <span class="topbar-sep">/</span>
+    <span class="topbar-page" id="topbar-page">Dashboard</span>
+    <div class="cpf-wrap">
+      <input class="cpf-inp" id="cpf-field" type="text" maxlength="14" placeholder="000.000.000-00" oninput="fmtCPF(this)" onkeydown="if(event.key==='Enter')buscar()">
+      <button class="btn-search" onclick="buscar()">Buscar</button>
+    </div>
+    <div class="topbar-right">
+      <span id="base-badge" class="base-info">Base: —</span>
+      <!-- Alerta de oportunidades -->
+      <div style="position:relative;cursor:pointer" onclick="irPara('oportunidades',document.getElementById('nav-oportunidades'))">
+        <span style="font-size:18px">🔔</span>
+        <span id="alerta-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#cc2200;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center" id="alerta-count">0</span>
+      </div>
+      <button class="btn-green" onclick="abrirImport()">+ Importar CSV</button>
+      <button class="btn-sm" onclick="limpar()">Limpar</button>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="empty" id="st-empty">
+      <div class="empty-ico">B</div>
+      <h2>Aguardando consulta</h2>
+      <p>Digite o CPF ou acesse Gestao da Base</p>
+    </div>
+    <div class="loading" id="st-loading" style="display:none"><div class="spinner"></div><span id="ld-msg">Consultando...</span></div>
+    <div id="st-result" style="display:none">
+      <div class="kpi-row">
+        <div class="kpi"><label>Margem Disponivel</label><div class="val green" id="k-livre">—</div></div>
+        <div class="kpi"><label>Margem Utilizada</label><div class="val warn" id="k-util">—</div></div>
+        <div class="kpi"><label>Margem Total</label><div class="val blue" id="k-total">—</div></div>
+        <div class="kpi"><label>Status</label><div class="val" id="k-status">—</div></div>
+      </div>
+      <div class="panels">
+        <div class="panel">
+          <div class="panel-title">Dados do Servidor</div>
+          <div class="row"><span class="key">Nome</span><span class="v" id="f-nome">—</span></div>
+          <div class="row"><span class="key">CPF</span><span class="v mono" id="f-cpf">—</span></div>
+          <div class="row"><span class="key">Matricula</span><span class="v mono" id="f-mat">—</span></div>
+          <div class="row"><span class="key">Secretaria</span><span class="v" id="f-sec">—</span></div>
+          <div class="row"><span class="key">Lotacao</span><span class="v" id="f-lot">—</span></div>
+          <div class="row"><span class="key">Tipo</span><span class="v" id="f-tipo">—</span></div>
+          <div class="row"><span class="key">Situacao</span><span class="v" id="f-sit">—</span></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Margem ConsigLog</div>
+          <div class="row"><span class="key">Margem Disponivel</span><span class="v green" id="m-livre">—</span></div>
+          <div class="row"><span class="key">Margem Real</span><span class="v" id="m-real">—</span></div>
+          <div class="row"><span class="key">Margem Total</span><span class="v blue" id="m-total">—</span></div>
+          <div class="row"><span class="key">Valor Desconto</span><span class="v warn" id="m-desc">—</span></div>
+          <div class="row"><span class="key">Qtd. Descontos</span><span class="v" id="m-qtd">—</span></div>
+          <div class="row"><span class="key">Pct. Margem</span><span class="v" id="m-pct">—</span></div>
+          <div class="bar-labels"><span>0%</span><span id="bar-pct">—</span><span>100%</span></div>
+          <div class="bar-track"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="extras-panel" id="extras-panel" style="display:none">
+        <div class="panel-title">Informacoes Adicionais</div>
+        <div class="extras-grid" id="extras-grid"></div>
+      </div>
+      <div class="table-panel">
+        <div class="panel-title">Historico</div>
+        <table><thead><tr><th>Data</th><th>Fonte</th><th>Margem Livre</th><th>Status</th></tr></thead>
+        <tbody id="tb-hist"></tbody></table>
+      </div>
+      <div class="panel-title" style="margin-bottom:6px;font-size:10px;color:#888;text-transform:uppercase">Log</div>
+      <div class="terminal" id="terminal"></div>
+    </div>
+  </div>
+
+  <!-- GESTAO DA BASE -->
+  <div class="page" id="page-base">
+    <!-- Extracao Rapida -->
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        Extracao Rapida
+        <span style="font-size:10px;color:#888;font-weight:400">— exporte a base por lotacao, secretaria ou tipo com um clique</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <!-- Por Secretaria -->
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px">Por Secretaria</label>
+          <div style="display:flex;gap:6px">
+            <select id="exp-secretaria" class="filter-sel" style="flex:1">
+              <option value="">Selecione...</option>
+            </select>
+            <button class="btn-ok" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="exportarPor('secretaria')">Exportar</button>
+          </div>
+          <div id="exp-sec-info" style="font-size:10px;color:#888;margin-top:4px"></div>
+        </div>
+        <!-- Por Lotacao -->
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px">Por Lotacao</label>
+          <div style="display:flex;gap:6px">
+            <select id="exp-lotacao" class="filter-sel" style="flex:1">
+              <option value="">Selecione...</option>
+            </select>
+            <button class="btn-ok" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="exportarPor('lotacao')">Exportar</button>
+          </div>
+          <div id="exp-lot-info" style="font-size:10px;color:#888;margin-top:4px"></div>
+        </div>
+        <!-- Por Tipo -->
+        <div>
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:5px">Por Tipo Servidor</label>
+          <div style="display:flex;gap:6px">
+            <select id="exp-tipo" class="filter-sel" style="flex:1">
+              <option value="">Selecione...</option>
+            </select>
+            <button class="btn-ok" style="font-size:11px;padding:5px 10px;white-space:nowrap" onclick="exportarPor('tipo')">Exportar</button>
+          </div>
+          <div id="exp-tipo-info" style="font-size:10px;color:#888;margin-top:4px"></div>
+        </div>
+      </div>
+      <!-- Exportar tudo filtrado -->
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e8e8e8;display:flex;align-items:center;gap:12px">
+        <span style="font-size:11px;color:#888">Exportar todos os filtros ativos:</span>
+        <button class="btn-green" onclick="exportarFiltrados()">Exportar Resultado Atual</button>
+        <button class="btn-sm" onclick="exportarTodaBase()">Exportar Toda a Base</button>
+        <span id="exp-result" style="font-size:11px;color:#1a7a1a;display:none"></span>
+      </div>
+    </div>
+
+    <!-- Filtros de Margem -->
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:12px">Busca por Faixa de Margem</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:12px">
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:4px">Margem De (R$)</label>
+          <input id="faixa-de" type="number" step="0.01" placeholder="Ex: 0.01" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:5px;padding:7px 10px;font-size:13px;color:#1a1a1a;outline:none">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:4px">Margem Ate (R$)</label>
+          <input id="faixa-ate" type="number" step="0.01" placeholder="Ex: 100.00" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:5px;padding:7px 10px;font-size:13px;color:#1a1a1a;outline:none">
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:6px">
+          <button class="btn-ok" style="padding:7px 16px;font-size:12px" onclick="aplicarFaixaMargem()">Buscar</button>
+          <button class="btn-sm" onclick="limparFaixaMargem()">Limpar</button>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:4px">Ordenar / Mostrar</label>
+          <select id="filter-margem-ordem" class="filter-sel" onchange="aplicarOrdemMargem()" style="width:100%">
+            <option value="">Selecione...</option>
+            <option value="maior">Maior para Menor</option>
+            <option value="zerada">Somente Zeradas (R$ 0,00)</option>
+            <option value="negativa">Somente Negativas (-)</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <span id="faixa-info" style="font-size:11px;color:#888"></span>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="base-stats-row">
+      <div class="stat-card"><label>Total</label><div class="sval blue" id="bs-total">—</div></div>
+      <div class="stat-card"><label>Ativos</label><div class="sval green" id="bs-ativos">—</div></div>
+      <div class="stat-card"><label>Ferias/Licenca</label><div class="sval warn" id="bs-ferias">—</div></div>
+      <div class="stat-card"><label>Obito</label><div class="sval red" id="bs-obito">—</div></div>
+      <div class="stat-card"><label>Ultima Atualizacao</label><div class="sval" id="bs-dt" style="font-size:12px">—</div></div>
+    </div>
+    <!-- Filtros Avancados -->
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:12px;font-weight:600;color:#1a1a1a">Filtros Avancados</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn-sm" onclick="limparFiltros()">Limpar Filtros</button>
+          <button class="btn-sm" onclick="exportarFiltrados()">Exportar</button>
+          <button class="btn-sm" onclick="carregarBase()">Atualizar</button>
+          <span id="base-count" style="font-size:11px;color:#888;padding:5px 0"></span>
+        </div>
+      </div>
+      <!-- Linha 1 -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Busca geral</label>
+          <input class="search-inp" id="base-search" placeholder="Nome, CPF, matricula..." oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Situacao</label>
+          <select class="filter-sel" id="filter-sit" onchange="filtrarBase()" style="width:100%">
+            <option value="">Todas</option>
+            <option value="ATIVO">Ativo</option>
+            <option value="FERIAS">Ferias</option>
+            <option value="LICENCA">Licenca</option>
+            <option value="OBITO">Obito</option>
+            <option value="SUSPENSO">Suspenso</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Secretaria</label>
+          <select class="filter-sel" id="filter-sec" onchange="filtrarBase()" style="width:100%"><option value="">Todas</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Tipo Servidor</label>
+          <select class="filter-sel" id="filter-tipo" onchange="filtrarBase()" style="width:100%"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Banco / Verba</label>
+          <input class="search-inp" id="filter-banco" placeholder="Ex: SAFRA, BMG..." oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Lotacao</label>
+          <input class="search-inp" id="filter-lotacao" placeholder="Ex: POLICIA, ESCOLA..." oninput="filtrarBase()" style="width:100%">
+        </div>
+      </div>
+      <!-- Linha 2 - Margem -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Margem Minima (R$)</label>
+          <input class="search-inp" id="filter-margem-min" type="number" placeholder="0" min="0" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Margem Maxima (R$)</label>
+          <input class="search-inp" id="filter-margem-max" type="number" placeholder="ilimitado" min="0" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Pct Margem Min (%)</label>
+          <input class="search-inp" id="filter-pct-min" type="number" placeholder="0" min="0" max="100" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Qtd Descontos Max</label>
+          <input class="search-inp" id="filter-qtd-max" type="number" placeholder="ilimitado" min="0" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Telefone / DDD</label>
+          <input class="search-inp" id="filter-telefone" placeholder="Ex: 77, 71..." oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Cidade / Estado</label>
+          <input class="search-inp" id="filter-cidade" placeholder="Ex: VITORIA, BA..." oninput="filtrarBase()" style="width:100%">
+        </div>
+      </div>
+      <!-- Linha 3 - Contratos e VD -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Convenio</label>
+          <select class="filter-sel" id="filter-convenio" onchange="filtrarBase()" style="width:100%">
+            <option value="">Todos</option>
+            <option value="SAEB">BA-SAEB</option>
+            <option value="SUPREV">BA-SUPREV</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Verba Desconto (VD)</label>
+          <input class="search-inp" id="filter-vd" placeholder="Ex: EMPRESTIMO, 5017..." oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Valor Desconto Min (R$)</label>
+          <input class="search-inp" id="filter-vdesc-min" type="number" placeholder="0" min="0" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Valor Desconto Max (R$)</label>
+          <input class="search-inp" id="filter-vdesc-max" type="number" placeholder="ilimitado" min="0" oninput="filtrarBase()" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Sit. Desconto</label>
+          <select class="filter-sel" id="filter-sit-desc" onchange="filtrarBase()" style="width:100%">
+            <option value="">Todos</option>
+            <option value="LIQUIDADA">Liquidada</option>
+            <option value="ATIVA">Ativa</option>
+            <option value="SUSPENSA">Suspensa</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#888;display:block;margin-bottom:3px">Motivo Situacao</label>
+          <input class="search-inp" id="filter-motivo" placeholder="Ex: FERIAS, LICENCA..." oninput="filtrarBase()" style="width:100%">
+        </div>
+      </div>
+      <!-- Linha 4 - Checkboxes -->
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="filter-com-margem" onchange="filtrarBase()" style="width:14px;height:14px">
+          Somente com margem disponivel
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="filter-com-contrato" onchange="filtrarBase()" style="width:14px;height:14px">
+          Com contratos averbados
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="filter-sem-contrato" onchange="filtrarBase()" style="width:14px;height:14px">
+          Sem contratos (margem livre)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="filter-com-telefone" onchange="filtrarBase()" style="width:14px;height:14px">
+          Com telefone cadastrado
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+          <input type="checkbox" id="filter-sem-obito" onchange="filtrarBase()" checked style="width:14px;height:14px">
+          Ocultar obitos
+        </label>
+      </div>
+    </div>
+    <div class="data-table-wrap">
+      <table class="base-tbl">
+        <thead><tr>
+          <th onclick="ordenar('CPF')">CPF</th>
+          <th onclick="ordenar('SERVIDOR')">Nome</th>
+          <th onclick="ordenar('MATRICULA')">Matricula</th>
+          <th onclick="ordenar('SECRETARIA')">Secretaria</th>
+          <th onclick="ordenar('SITUACAO')">Situacao</th>
+          <th onclick="ordenar('MARGEM_DISPONIVEL')">Margem Disp.</th>
+          <th onclick="ordenar('MARGEM_TOTAL')">Margem Total</th>
+          <th>Acao</th>
+        </tr></thead>
+        <tbody id="base-tbody"></tbody>
+      </table>
+      <div class="pagination">
+        <button id="pg-prev" onclick="pagAnterior()">Anterior</button>
+        <span id="pg-info">—</span>
+        <button id="pg-next" onclick="pagProxima()">Proxima</button>
+        <span style="margin-left:auto;font-size:11px;color:#888">Por pagina:</span>
+        <select class="filter-sel" style="padding:3px 6px" onchange="porPagina=+this.value;paginaAtual=0;renderTabela()">
+          <option>25</option><option>50</option><option selected>100</option><option>200</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORTACOES -->
+  <div class="page" id="page-importacoes">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:500">Historico de Importacoes</div>
+      <button class="btn-green" onclick="abrirImport()">+ Nova Importacao</button>
+    </div>
+    <div id="import-hist-list"><div style="color:#888;font-size:13px">Carregando...</div></div>
+  </div>
+
+  <!-- SUB-PLANILHAS -->
+  <div class="page" id="page-segmentos">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div><div style="font-size:14px;font-weight:600">Sub-planilhas Inteligentes</div></div>
+      <button class="btn-green" onclick="adicionarSegmento()">+ Nova Sub-planilha</button>
+    </div>
+    <div id="construtor" style="display:none">
+      <div class="panel" style="margin-bottom:14px;border-color:#1a1a1a">
+        <div style="font-size:12px;font-weight:600;margin-bottom:12px">Configurar Filtros</div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">Nome da Sub-planilha</label>
+          <input id="seg-nome-inp" type="text" placeholder="Ex: Educacao Safra menos 65 anos" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:5px;padding:7px 12px;font-size:13px;color:#1a1a1a;outline:none">
+        </div>
+        <div class="filtros-grid">
+          <div class="filtro-bloco"><label>Secretaria</label><select id="f-secretaria"><option value="">Qualquer</option></select></div>
+          <div class="filtro-bloco"><label>Banco / Verba</label><input id="f-banco" type="text" placeholder="Ex: SAFRA, BMG..."></div>
+          <div class="filtro-bloco"><label>Situacao</label><select id="f-situacao-seg"><option value="">Qualquer</option><option value="ATIVO">Ativo</option><option value="FERIAS">Ferias</option><option value="LICENCA">Licenca</option></select></div>
+          <div class="filtro-bloco"><label>Margem Minima (R$)</label><input id="f-margem-min" type="number" placeholder="0" min="0"></div>
+          <div class="filtro-bloco"><label>Margem Maxima (R$)</label><input id="f-margem-max" type="number" placeholder="ilimitado" min="0"></div>
+          <div class="filtro-bloco"><label>Lotacao (contem)</label><input id="f-lotacao" type="text" placeholder="Ex: ESCOLA..."></div>
+        </div>
+        <div id="preview-result" style="display:none" class="seg-result"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn-sm" onclick="previewSegmento()">Visualizar</button>
+          <button class="btn-ok" onclick="salvarSegmento()">Salvar</button>
+          <button class="btn-green" onclick="exportarSegmento()">Exportar CSV</button>
+          <button class="btn-cancel" onclick="document.getElementById('construtor').style.display='none'" style="margin-left:auto">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Sub-planilhas Salvas</div>
+    <div id="segs-salvos-list"></div>
+  </div>
+
+  <!-- WHATSAPP -->
+  <div class="page" id="page-whatsapp">
+    <div style="font-size:14px;font-weight:600;margin-bottom:16px">WhatsApp — Bravo Consignado</div>
+    <div class="panels" style="margin-bottom:16px">
+      <div class="panel">
+        <div class="panel-title">Controle do Bot</div>
+        <div class="row"><span class="key">Processo</span><span class="v" id="wa-proc"><span class="badge b-gray">verificando...</span></span></div>
+        <div class="row"><span class="key">WhatsApp</span><span class="v" id="wa-status"><span class="badge b-warn">verificando...</span></span></div>
+        <div class="row"><span class="key">Numero</span><span class="v mono" id="wa-numero">—</span></div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btn-wa-iniciar" class="btn-ok" style="font-size:12px;padding:7px 16px" onclick="iniciarBot()">▶ Iniciar Bot</button>
+          <button id="btn-wa-parar" class="btn-sm" style="font-size:12px;padding:7px 16px;border-color:#cc2200;color:#cc2200" onclick="pararBot()">■ Parar Bot</button>
+          <button class="btn-sm" style="font-size:12px" onclick="carregarStatusWA()">↻</button>
+        </div>
+        <div id="wa-bot-msg" style="display:none;margin-top:8px;font-size:11px;padding:6px 10px;border-radius:4px;background:#f5f5f5;border:1px solid #e0e0e0"></div>
+        <!-- QR Code -->
+        <div id="qr-section" style="display:none;margin-top:12px;text-align:center;padding:16px;background:#f5f5f5;border-radius:8px;border:2px solid #1a1a1a">
+          <div style="font-size:12px;font-weight:600;margin-bottom:8px">Escaneie com o WhatsApp</div>
+          <div style="font-size:11px;color:#888;margin-bottom:10px">WhatsApp → 3 pontinhos → Dispositivos Conectados → Conectar</div>
+          <img id="qr-img" src="" alt="QR Code" style="max-width:200px;width:100%;border-radius:6px;background:#fff;display:block;margin:0 auto">
+          <canvas id="qr-canvas" style="display:none"></canvas>
+          <div style="font-size:10px;color:#888;margin-top:8px">QR Code expira em 60 segundos</div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Log do Bot</div>
+          <div id="wa-log" style="background:#1a1a1a;border-radius:6px;padding:10px;font-family:var(--mono);font-size:10px;color:#adbac7;max-height:120px;overflow-y:auto;line-height:1.6">Aguardando...</div>
+          <button class="btn-sm" style="font-size:10px;margin-top:6px" onclick="carregarLogBot()">Atualizar Log</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Enviar Mensagem</div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Telefone (com DDD)</label>
+          <input id="wa-tel" type="text" placeholder="77999998888" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:6px 10px;font-size:12px;color:#1a1a1a;outline:none">
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:3px">CPF (para oferta automatica)</label>
+          <input id="wa-cpf" type="text" placeholder="000.000.000-00" oninput="fmtCPF(this)" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:6px 10px;font-size:12px;color:#1a1a1a;font-family:var(--mono);outline:none">
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Ou mensagem livre</label>
+          <textarea id="wa-msg" placeholder="Digite a mensagem..." style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:6px 10px;font-size:12px;color:#1a1a1a;outline:none;height:70px;resize:none"></textarea>
+        </div>
+        <button class="btn-ok" style="width:100%;font-size:12px;padding:8px" onclick="enviarWA()">Enviar WhatsApp</button>
+        <div id="wa-send-msg" style="display:none;margin-top:8px;font-size:11px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Historico de Conversas</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn-sm" onclick="carregarConversasWA()">Carregar Conversas</button>
+      </div>
+      <div id="wa-conversas-lista"><div style="color:#888;font-size:12px">Clique em Carregar Conversas.</div></div>
+    </div>
+  </div>
+
+  <!-- ROBOS -->
+  <div class="page" id="page-robos">
+    <div style="font-size:14px;font-weight:600;margin-bottom:16px">Central de Robos</div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-title">ConsigLog Bot</div>
+        <div class="row"><span class="key">Status</span><span class="v"><span class="badge b-green">ativo</span></span></div>
+        <div class="row"><span class="key">Horario</span><span class="v">07h00 - 20h00</span></div>
+        <div class="row"><span class="key">Convenios</span><span class="v">SAEB + SUPREV</span></div>
+        <div style="margin-top:12px"><button class="btn-sm" onclick="carregarAgendador()">Ver Agendador</button></div>
+        <div id="ag-info" style="margin-top:10px;font-size:11px;color:#888"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Agendador</div>
+        <div class="row"><span class="key">Ultima verificacao</span><span class="v" id="ag-ultima">—</span></div>
+        <div class="row"><span class="key">Pasta</span><span class="v mono" style="font-size:10px">C:\consigplat\importacao</span></div>
+        <div class="row"><span class="key">Arquivos hoje</span><span class="v" id="ag-hoje">—</span></div>
+        <div style="margin-top:12px"><button class="btn-ok" style="font-size:11px;padding:5px 12px" onclick="forcarImportacao()">Forcar Importacao</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIGURACOES -->
+  <div class="page" id="page-config">
+    <div style="font-size:14px;font-weight:600;margin-bottom:16px">Configuracoes</div>
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-title">Credenciais ConsigLog</div>
+        <div style="margin-bottom:8px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Login</label><input id="cfg-user" type="text" placeholder="usuario" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:6px 10px;font-size:12px;color:#1a1a1a;outline:none"></div>
+        <div style="margin-bottom:12px"><label style="font-size:11px;color:#888;display:block;margin-bottom:3px">Senha</label><input id="cfg-pass" type="password" placeholder="senha" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:4px;padding:6px 10px;font-size:12px;color:#1a1a1a;outline:none"></div>
+        <button class="btn-ok" style="font-size:11px;padding:6px 16px" onclick="salvarCredenciais()">Salvar</button>
+        <span id="cfg-msg" style="display:none;margin-left:8px;font-size:11px;color:#1a7a1a">Salvo!</span>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Informacoes do Sistema</div>
+        <div class="row"><span class="key">Versao</span><span class="v">Bravo Consig 1.0</span></div>
+        <div class="row"><span class="key">Registros</span><span class="v" id="cfg-total">—</span></div>
+        <div class="row"><span class="key">Colunas</span><span class="v" id="cfg-cols">—</span></div>
+        <div class="row"><span class="key">Importacoes</span><span class="v" id="cfg-imps">—</span></div>
+        <div class="row"><span class="key">Banco</span><span class="v mono" style="font-size:10px">data\consigplat.db</span></div>
+        <div style="margin-top:10px"><button class="btn-sm" onclick="carregarInfoSistema()">Atualizar</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+  <!-- OPORTUNIDADES -->
+  <div class="page" id="page-oportunidades">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:14px;font-weight:600">Oportunidades de Credito</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">CRM identifica e classifica automaticamente os clientes com potencial</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="op-atualizado" style="font-size:11px;color:#888"></span>
+        <button class="btn-sm" onclick="carregarOportunidadesAPI()">Atualizar</button>
+        <button class="btn-green" onclick="exportarOportunidades('quente')">Exportar Quentes</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+      <div style="background:#fff;border:2px solid #1a7a1a;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Quente</div>
+        <div style="font-size:24px;font-weight:700;color:#1a7a1a" id="op-quente-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Margem acima de R$300</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px;border-color:#1a7a1a;color:#1a7a1a" onclick="filtrarOportunidadeAPI('quente')">Ver Lista</button>
+      </div>
+      <div style="background:#fff;border:2px solid #c17f00;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Morno</div>
+        <div style="font-size:24px;font-weight:700;color:#c17f00" id="op-morno-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Margem R$50 ate R$299</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px;border-color:#c17f00;color:#c17f00" onclick="filtrarOportunidadeAPI('morno')">Ver Lista</button>
+      </div>
+      <div style="background:#fff;border:2px solid #cc2200;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Frio</div>
+        <div style="font-size:24px;font-weight:700;color:#cc2200" id="op-frio-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Margem R$0,01 ate R$49</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px;border-color:#cc2200;color:#cc2200" onclick="filtrarOportunidadeAPI('frio')">Ver Lista</button>
+      </div>
+      <div style="background:#fff;border:2px solid #888;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Sem Oportunidade</div>
+        <div style="font-size:24px;font-weight:700;color:#888" id="op-sem-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Zerada, negativa ou inativo</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px" onclick="filtrarOportunidadeAPI('sem')">Ver Lista</button>
+      </div>
+    </div>
+
+    <!-- Refinanciamento -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:#5a3ea0">Refinanciamento</div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px">Clientes com contratos ativos que podem refinanciar</div>
+        <div style="font-size:22px;font-weight:700;color:#5a3ea0" id="op-refin-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px" id="op-refin-desc">QTD_DESCONTO maior que 0</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px;border-color:#5a3ea0;color:#5a3ea0" onclick="filtrarOportunidadeAPI('refin')">Ver Lista</button>
+      </div>
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:11px;font-weight:600;margin-bottom:8px;color:#1a1a1a">Margem 100% Livre</div>
+        <div style="font-size:11px;color:#888;margin-bottom:10px">Clientes ativos sem nenhum contrato averbado</div>
+        <div style="font-size:22px;font-weight:700;color:#1a1a1a" id="op-livre-total">—</div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Sem descontos + margem disponivel</div>
+        <button class="btn-sm" style="margin-top:8px;font-size:10px" onclick="filtrarOportunidadeAPI('livre')">Ver Lista</button>
+      </div>
+    </div>
+
+    <!-- Tabela de resultado -->
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="padding:12px 16px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;font-weight:500" id="op-lista-titulo">Clique em Ver Lista para exibir</span>
+        <div style="display:flex;gap:8px">
+          <span id="op-lista-count" style="font-size:11px;color:#888"></span>
+          <button class="btn-sm" id="op-exportar-btn" style="display:none;font-size:10px" onclick="exportarListaAtual()">Exportar</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="border-bottom:1px solid #e8e8e8">
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">CPF</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Nome</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Secretaria</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Situacao</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Margem Disp.</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Margem Total</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Qtd Desc.</th>
+              <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Oportunidade</th>
+            </tr>
+          </thead>
+          <tbody id="op-tbody"></tbody>
+        </table>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid #e8e8e8;font-size:11px;color:#888" id="op-paginacao"></div>
+    </div>
+  </div>
+
+
+  <!-- LEADS -->
+  <div class="page" id="page-leads">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:14px;font-weight:600">Leads — Prontos para Digitacao</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">Clientes que aceitaram a oferta pelo WhatsApp</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm" onclick="carregarLeads()">Atualizar</button>
+        <button class="btn-green" onclick="exportarLeads()">Exportar</button>
+      </div>
+    </div>
+    <!-- KPIs leads -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Total Leads</div>
+        <div style="font-size:22px;font-weight:700;color:#1a1a1a" id="ld-total">—</div>
+      </div>
+      <div style="background:#fff;border:1px solid #1a7a1a;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Aguardando Digitacao</div>
+        <div style="font-size:22px;font-weight:700;color:#1a7a1a" id="ld-aguardando">—</div>
+      </div>
+      <div style="background:#fff;border:1px solid #c17f00;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Em Andamento</div>
+        <div style="font-size:22px;font-weight:700;color:#c17f00" id="ld-andamento">—</div>
+      </div>
+      <div style="background:#fff;border:1px solid #888;border-radius:8px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px">Concluidos</div>
+        <div style="font-size:22px;font-weight:700;color:#888" id="ld-concluidos">—</div>
+      </div>
+    </div>
+    <!-- Tabela de leads -->
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:1px solid #e8e8e8;background:#f9f9f9">
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Data</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Cliente</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">CPF</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Telefone</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Margem</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Parcelas</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Banco</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Status</th>
+            <th style="text-align:left;padding:10px 12px;color:#888;font-weight:500">Acao</th>
+          </tr>
+        </thead>
+        <tbody id="leads-tbody"></tbody>
+      </table>
+      <div id="leads-empty" style="text-align:center;padding:40px;color:#888;font-size:13px">
+        Nenhum lead ainda. Os leads aparecem aqui quando clientes aceitam a oferta pelo WhatsApp.
+      </div>
+    </div>
+  </div>
+
+<!-- Modal importar -->
+<div class="modal-bg" id="modal" style="display:none">
+  <div class="modal">
+    <h2>Importar Planilha</h2>
+    <p>CSV, TXT ou TSV. Colunas novas detectadas automaticamente.</p>
+    <div id="import-msg" style="display:none"></div>
+    <div id="novas-cols-wrap" style="display:none;margin-bottom:12px">
+      <div style="font-size:11px;color:#888;margin-bottom:4px">Novas colunas:</div>
+      <div id="novas-cols-list"></div>
+    </div>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()" ondragover="event.preventDefault()" ondrop="onDrop(event)">
+      <div class="ico">📂</div>
+      <p id="drop-label">Clique ou arraste arquivos aqui</p>
+      <input type="file" id="file-inp" accept=".csv,.txt,.tsv" multiple onchange="onFileSelect(this)">
+    </div>
+    <div id="file-list" style="display:none;margin-bottom:12px;border:1px solid #e0e0e0;border-radius:6px;padding:8px;max-height:150px;overflow-y:auto"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="fecharImport()">Cancelar</button>
+      <button class="btn-ok" id="btn-imp" onclick="importarTodos()" disabled>Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalhe -->
+<div class="modal-bg" id="modal-det" style="display:none">
+  <div class="modal">
+    <h2 id="det-nome">—</h2>
+    <p id="det-cpf" style="font-family:var(--mono);font-size:12px;color:#888">—</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px" id="det-grid"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="document.getElementById('modal-det').style.display='none'">Fechar</button>
+      <button class="btn-ok" onclick="consultarDoPainel()">Ver Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var API = 'http://localhost:8000';
+var WA_URL = 'http://localhost:3000';
+var FIXAS = {'CPF':1,'SERVIDOR':1,'MATRICULA':1,'SECRETARIA':1,'LOTACAO':1,'SITUACAO':1,'TIPO_SERVIDOR':1,'MARGEM_DISPONIVEL':1,'MARGEM_REAL':1,'MARGEM_TOTAL':1,'MARG_DISP_TABELA':1,'PCT_MARGEM':1,'QTD_DESCONTO':1,'VALOR_DESCONTO':1,'DESCONTOS':1,'VD':1,'VD_DESCONTO':1,'VERBA_DESCONTO':1,'MOTIVO_SITUACAO':1,'SIT_DESCONTO':1};
+
+function irPara(pg, el) {
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('page-' + pg).classList.add('active');
+  var titles = {dashboard:'Dashboard',base:'Gestao da Base',importacoes:'Importacoes',segmentos:'Sub-planilhas',oportunidades:'Oportunidades',whatsapp:'WhatsApp',leads:'Leads',robos:'Central de Robos',config:'Configuracoes'};
+  document.getElementById('topbar-page').textContent = titles[pg] || pg;
+  if (pg === 'base') carregarBase();
+  if (pg === 'importacoes') carregarHistImport();
+  if (pg === 'segmentos') { renderSegmentosSalvos(); if (!todosServidores.length) carregarBase(); }
+  if (pg === 'robos') carregarAgendador();
+  if (pg === 'config') carregarInfoSistema();
+  if (pg === 'whatsapp') { carregarStatusWA(); carregarLogBot(); }
+  if (pg === 'leads') carregarLeads();
+  if (pg === 'oportunidades') carregarOportunidadesAPI();
+}
+
+function show(id) { var e = document.getElementById(id); if (e) e.style.display = ''; }
+function hide(id) { var e = document.getElementById(id); if (e) e.style.display = 'none'; }
+function set(id, v) { var e = document.getElementById(id); if (e) e.innerHTML = v; }
+function brl(n) { return (parseFloat(n) || 0).toFixed(2).replace('.', ','); }
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+function fmtCPF(el) {
+  var v = el.value.replace(/\D/g, '').slice(0, 11);
+  if (v.length > 9) v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{1,2})$/, '$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/^(\d{3})(\d{3})(\d{1,3})$/, '$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/^(\d{3})(\d{1,3})$/, '$1.$2');
+  el.value = v;
+}
+var logs = [];
+function pushLog(cls, msg) {
+  var ts = new Date().toLocaleTimeString('pt-BR');
+  logs.push('<div><span class="lg-ts">[' + ts + ']</span> <span class="lg-' + cls + '">' + msg + '</span></div>');
+  var t = document.getElementById('terminal');
+  if (t) { t.innerHTML = logs.join(''); t.scrollTop = t.scrollHeight; }
+}
+
+async function carregarStats() {
+  try {
+    var d = await fetch(API + '/base/stats').then(function(r) { return r.json(); });
+    var badge = document.getElementById('base-badge');
+    var stat = document.getElementById('base-stat');
+    if (d.total > 0) {
+      badge.textContent = 'Base: ' + d.total.toLocaleString('pt-BR') + ' servidores';
+      badge.style.color = '#1a7a1a';
+      if (stat) stat.innerHTML = d.total.toLocaleString() + ' registros';
+    } else {
+      badge.textContent = 'Base vazia';
+    }
+  } catch(e) {
+    document.getElementById('base-badge').textContent = 'Servidor offline';
+  }
+}
+
+async function buscar() {
+  var cpf = document.getElementById('cpf-field').value.trim();
+  if (cpf.replace(/\D/g, '').length < 7) { alert('CPF invalido.'); return; }
+  irPara('dashboard', document.getElementById('nav-dashboard'));
+  logs = [];
+  hide('st-empty'); hide('st-result'); show('st-loading');
+  document.getElementById('ld-msg').textContent = 'Consultando...';
+  pushLog('inf', 'Buscando CPF: ' + cpf);
+  try {
+    var r1 = await fetch(API + '/consultar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cpf:cpf,operador:'web'})});
+    var j1 = await r1.json();
+    await pollJob(j1.job_id);
+    var r2 = await fetch(API + '/cliente/' + cpf.replace(/\D/g, ''));
+    var dados = await r2.json();
+    preencherDash(cpf, dados);
+  } catch(e) {
+    pushLog('err', 'Erro: ' + e.message);
+    hide('st-loading'); show('st-result');
+  }
+}
+
+async function pollJob(jid) {
+  for (var i = 0; i < 20; i++) {
+    await sleep(600);
+    try {
+      var j = await fetch(API + '/status/' + jid).then(function(r) { return r.json(); });
+      if (j.logs) j.logs.forEach(function(l) { pushLog('inf', l.replace(/^\[.*?\]\s*/, '')); });
+      if (j.status === 'concluido' || j.status === 'erro') return;
+    } catch(e) {}
+  }
+}
+
+function preencherDash(cpf, dados) {
+  var b = dados.base || {}, h = dados.historico || [];
+  var livre = parseFloat(b.MARGEM_DISPONIVEL || (h[0] ? h[0].margem_livre : 0) || 0);
+  var util = parseFloat(b.VALOR_DESCONTO || (h[0] ? h[0].margem_util : 0) || 0);
+  var total = parseFloat(b.MARGEM_TOTAL || (h[0] ? h[0].margem_total : 0) || 0);
+  var pct = total ? Math.round((util / total) * 100) : 0;
+  set('k-livre', 'R$ ' + brl(livre)); set('k-util', 'R$ ' + brl(util)); set('k-total', 'R$ ' + brl(total));
+  var sit = b.SITUACAO || '—';
+  var isObito = sit.toUpperCase().indexOf('OBIT') >= 0;
+  set('k-status', '<span class="badge ' + (isObito ? 'b-red' : 'b-green') + '">' + sit + '</span>');
+  set('f-nome', b.SERVIDOR || '—'); set('f-cpf', cpf); set('f-mat', b.MATRICULA || '—');
+  set('f-sec', b.SECRETARIA || '—'); set('f-lot', b.LOTACAO || '—'); set('f-tipo', b.TIPO_SERVIDOR || '—');
+  set('f-sit', b.SITUACAO ? '<span class="badge ' + (isObito ? 'b-red' : 'b-green') + '">' + b.SITUACAO + '</span>' : '—');
+  set('m-livre', 'R$ ' + brl(livre)); set('m-real', 'R$ ' + brl(b.MARGEM_REAL || 0));
+  set('m-total', 'R$ ' + brl(total)); set('m-desc', 'R$ ' + brl(util));
+  set('m-qtd', b.QTD_DESCONTO || '0'); set('m-pct', (b.PCT_MARGEM || 0) + '%');
+  set('bar-pct', pct + '% utilizada');
+  setTimeout(function() { document.getElementById('bar-fill').style.width = pct + '%'; }, 100);
+  var extras = Object.keys(b).filter(function(k) { return !FIXAS[k.toUpperCase()] && k.indexOf('_') !== 0; });
+  if (extras.length) {
+    document.getElementById('extras-grid').innerHTML = extras.map(function(k) {
+      return '<div class="extra-card"><div class="ec-key">' + k.replace(/_/g,' ') + '</div><div class="ec-val">' + (b[k] || '—') + '</div></div>';
+    }).join('');
+    show('extras-panel');
+  } else hide('extras-panel');
+  var tbody = document.getElementById('tb-hist');
+  tbody.innerHTML = h.length ? h.map(function(r) {
+    return '<tr><td>' + (r.criado||'').slice(0,16) + '</td><td><span class="badge b-blue">' + (r.fonte||'—') + '</span></td><td class="green">R$ ' + brl(r.margem_livre) + '</td><td><span class="badge ' + (r.status==='ok'?'b-green':'b-red') + '">' + r.status + '</span></td></tr>';
+  }).join('') : '<tr><td colspan="4" style="color:#888;text-align:center;padding:12px">Sem historico</td></tr>';
+  if (!b.SERVIDOR && !h.length) pushLog('wrn', 'CPF nao encontrado. Importe o CSV.');
+  hide('st-loading'); show('st-result');
+}
+
+function limpar() {
+  document.getElementById('cpf-field').value = '';
+  hide('st-result'); hide('st-loading'); show('st-empty'); logs = [];
+}
+
+var todosServidores = [], filtrados = [], paginaAtual = 0, porPagina = 100, ordenacaoCol = '', ordenacaoAsc = true, cpfDetalhe = '';
+
+async function carregarBase() {
+  document.getElementById('base-tbody').innerHTML = '<tr><td colspan="8" style="color:#888;text-align:center;padding:20px">Carregando...</td></tr>';
+  try {
+    var d = await fetch(API + '/base/todos').then(function(r) { return r.json(); });
+    todosServidores = d;
+    popularFiltros(d); calcularStats(d); filtrarBase();
+  } catch(e) {
+    document.getElementById('base-tbody').innerHTML = '<tr><td colspan="8" style="color:#cc2200;text-align:center;padding:20px">Erro. Verifique o servidor.</td></tr>';
+  }
+}
+
+function popularFiltros(dados) {
+  var secs = {}, tipos = {};
+  dados.forEach(function(r) { if (r.SECRETARIA) secs[r.SECRETARIA] = 1; if (r.TIPO_SERVIDOR) tipos[r.TIPO_SERVIDOR] = 1; });
+  var fSec = document.getElementById('filter-sec'), fTipo = document.getElementById('filter-tipo');
+  fSec.innerHTML = '<option value="">Todas secretarias</option>' + Object.keys(secs).sort().map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+  fTipo.innerHTML = '<option value="">Todos os tipos</option>' + Object.keys(tipos).sort().map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('');
+}
+
+function calcularStats(dados) {
+  var total = dados.length;
+  var ativos = dados.filter(function(r) { var s = (r.SITUACAO||'').toUpperCase(); return s.indexOf('ATIVO') >= 0 && s.indexOf('OBIT') < 0; }).length;
+  var ferias = dados.filter(function(r) { var s = (r.SITUACAO||'').toUpperCase(); return s.indexOf('FERIA') >= 0 || s.indexOf('LICEN') >= 0; }).length;
+  var obito = dados.filter(function(r) { return (r.SITUACAO||'').toUpperCase().indexOf('OBIT') >= 0; }).length;
+  set('bs-total', total.toLocaleString('pt-BR')); set('bs-ativos', ativos.toLocaleString('pt-BR'));
+  set('bs-ferias', ferias.toLocaleString('pt-BR')); set('bs-obito', obito.toLocaleString('pt-BR'));
+  set('bs-dt', dados.length && dados[0]._importado_em ? dados[0]._importado_em.slice(0,16) : '—');
+}
+
+function filtrarBase() {
+  var q = (document.getElementById('base-search').value || '').toLowerCase().trim();
+  var sit = (document.getElementById('filter-sit').value || '').toUpperCase();
+  var sec = (document.getElementById('filter-sec').value || '').toUpperCase();
+  var tipo = (document.getElementById('filter-tipo').value || '').toUpperCase();
+  var banco = (document.getElementById('filter-banco').value || '').toUpperCase().trim();
+  var lotacao = (document.getElementById('filter-lotacao').value || '').toUpperCase().trim();
+  var margemMin = parseFloat(document.getElementById('filter-margem-min').value) || null;
+  var margemMax = parseFloat(document.getElementById('filter-margem-max').value) || null;
+  var pctMin = parseFloat(document.getElementById('filter-pct-min').value) || null;
+  var qtdMax = parseFloat(document.getElementById('filter-qtd-max').value);
+  var qtdMaxVal = isNaN(qtdMax) ? null : qtdMax;
+  var telefone = (document.getElementById('filter-telefone').value || '').trim();
+  var cidade = (document.getElementById('filter-cidade').value || '').toUpperCase().trim();
+  var comMargem = document.getElementById('filter-com-margem').checked;
+  var comTelefone = document.getElementById('filter-com-telefone').checked;
+  var semObito = document.getElementById('filter-sem-obito').checked;
+
+  filtrados = todosServidores.filter(function(r) {
+    var situacao = (r.SITUACAO||'').toUpperCase();
+    // Ocultar obitos
+    if (semObito && situacao.indexOf('OBIT') >= 0) return false;
+    // Situacao
+    if (sit && situacao.indexOf(sit) < 0) return false;
+    // Secretaria
+    if (sec && (r.SECRETARIA||'').toUpperCase() !== sec) return false;
+    // Tipo
+    if (tipo && (r.TIPO_SERVIDOR||'').toUpperCase() !== tipo) return false;
+    // Banco/Verba
+    if (banco) {
+      var vd = ((r.VERBA_DESCONTO||'')+(r.VD||'')+(r.SIT_DESCONTO||'')).toUpperCase();
+      // Busca em qualquer campo que tenha BANCO no nome
+      var temBanco = vd.indexOf(banco) >= 0;
+      if (!temBanco) {
+        var keys = Object.keys(r);
+        for (var ki = 0; ki < keys.length; ki++) {
+          if (keys[ki].toUpperCase().indexOf('BANCO') >= 0 && String(r[keys[ki]]||'').toUpperCase().indexOf(banco) >= 0) {
+            temBanco = true; break;
+          }
+        }
+      }
+      if (!temBanco) return false;
+    }
+    // Lotacao
+    if (lotacao && (r.LOTACAO||'').toUpperCase().indexOf(lotacao) < 0) return false;
+    // Margem
+    var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    if (comMargem && marg <= 0) return false;
+    if (margemMin !== null && marg < margemMin) return false;
+    if (margemMax !== null && marg > margemMax) return false;
+    // Pct margem
+    if (pctMin !== null) {
+      var pct = parseFloat(r.PCT_MARGEM || 0);
+      if (pct < pctMin) return false;
+    }
+    // Qtd descontos
+    if (qtdMaxVal !== null) {
+      var qtd = parseInt(r.QTD_DESCONTO || 0);
+      if (qtd > qtdMaxVal) return false;
+    }
+    // Telefone/DDD - busca em qualquer campo de telefone
+    if (telefone) {
+      var temTel = false;
+      var keys2 = Object.keys(r);
+      for (var ki2 = 0; ki2 < keys2.length; ki2++) {
+        var k2 = keys2[ki2].toUpperCase();
+        if (k2.indexOf('TEL') >= 0 || k2.indexOf('CEL') >= 0 || k2.indexOf('FONE') >= 0 || k2.indexOf('WHATS') >= 0) {
+          if (String(r[keys2[ki2]]||'').replace(/\D/g,'').indexOf(telefone.replace(/\D/g,'')) >= 0) {
+            temTel = true; break;
+          }
+        }
+      }
+      if (comTelefone && !temTel) return false;
+      if (telefone && !temTel) return false;
+    } else if (comTelefone) {
+      var temTelQ = false;
+      var keysQ = Object.keys(r);
+      for (var kiQ = 0; kiQ < keysQ.length; kiQ++) {
+        var kQ = keysQ[kiQ].toUpperCase();
+        if (kQ.indexOf('TEL') >= 0 || kQ.indexOf('CEL') >= 0 || kQ.indexOf('FONE') >= 0) {
+          if (r[keysQ[kiQ]] && String(r[keysQ[kiQ]]).trim()) { temTelQ = true; break; }
+        }
+      }
+      if (!temTelQ) return false;
+    }
+    // Cidade/Estado - busca em qualquer campo de endereco
+    if (cidade) {
+      var temCidade = false;
+      var keysC = Object.keys(r);
+      for (var kiC = 0; kiC < keysC.length; kiC++) {
+        var kC = keysC[kiC].toUpperCase();
+        if (kC.indexOf('CIDADE') >= 0 || kC.indexOf('MUNICIPIO') >= 0 || kC.indexOf('ESTADO') >= 0 || kC.indexOf('UF') >= 0 || kC.indexOf('ENDERECO') >= 0) {
+          if (String(r[keysC[kiC]]||'').toUpperCase().indexOf(cidade) >= 0) { temCidade = true; break; }
+        }
+      }
+      if (!temCidade) return false;
+    }
+    // Convenio (via SECRETARIA ou campo CONVENIO)
+    var convenio = (document.getElementById('filter-convenio').value || '').toUpperCase();
+    if (convenio) {
+      var secUpper = (r.SECRETARIA||'').toUpperCase();
+      var convUpper = (r.CONVENIO||'').toUpperCase();
+      if (secUpper.indexOf(convenio) < 0 && convUpper.indexOf(convenio) < 0) return false;
+    }
+    // VD (Verba de Desconto)
+    var vdFiltro = (document.getElementById('filter-vd').value || '').toUpperCase().trim();
+    if (vdFiltro) {
+      var vdVal = ((r.VD||'')+(r.VERBA_DESCONTO||'')+(r.VD_DESCONTO||'')).toUpperCase();
+      if (vdVal.indexOf(vdFiltro) < 0) return false;
+    }
+    // Valor desconto min/max
+    var vdescMin = parseFloat(document.getElementById('filter-vdesc-min').value) || null;
+    var vdescMax = parseFloat(document.getElementById('filter-vdesc-max').value) || null;
+    var vdesc = parseFloat(r.VALOR_DESCONTO || 0);
+    if (vdescMin !== null && vdesc < vdescMin) return false;
+    if (vdescMax !== null && vdesc > vdescMax) return false;
+    // Situacao desconto
+    var sitDesc = (document.getElementById('filter-sit-desc').value || '').toUpperCase();
+    if (sitDesc && (r.SIT_DESCONTO||'').toUpperCase().indexOf(sitDesc) < 0) return false;
+    // Motivo situacao
+    var motivo = (document.getElementById('filter-motivo').value || '').toUpperCase().trim();
+    if (motivo && (r.MOTIVO_SITUACAO||'').toUpperCase().indexOf(motivo) < 0) return false;
+    // Com contratos averbados
+    if (document.getElementById('filter-com-contrato').checked) {
+      var qtdDesc = parseInt(r.QTD_DESCONTO || 0);
+      var valDesc = parseFloat(r.VALOR_DESCONTO || 0);
+      if (qtdDesc <= 0 && valDesc <= 0) return false;
+    }
+    // Sem contratos
+    if (document.getElementById('filter-sem-contrato').checked) {
+      var qtdDescS = parseInt(r.QTD_DESCONTO || 0);
+      var valDescS = parseFloat(r.VALOR_DESCONTO || 0);
+      if (qtdDescS > 0 || valDescS > 0) return false;
+    }
+    // Busca geral
+    if (q) {
+      var campos = ((r.SERVIDOR||'')+(r.CPF||'')+(r.MATRICULA||'')+(r.LOTACAO||'')).toLowerCase();
+      if (campos.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+  if (ordenacaoCol) aplicarOrdenacao();
+  paginaAtual = 0; renderTabela();
+}
+
+function limparFiltros() {
+  var ids = ['base-search','filter-sit','filter-sec','filter-tipo','filter-banco',
+    'filter-lotacao','filter-margem-min','filter-margem-max','filter-pct-min',
+    'filter-qtd-max','filter-telefone','filter-cidade','filter-convenio',
+    'filter-vd','filter-vdesc-min','filter-vdesc-max','filter-sit-desc','filter-motivo'];
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('filter-com-margem').checked = false;
+  document.getElementById('filter-com-contrato').checked = false;
+  document.getElementById('filter-sem-contrato').checked = false;
+  document.getElementById('filter-com-telefone').checked = false;
+  document.getElementById('filter-sem-obito').checked = true;
+  filtrarBase();
+}
+
+function ordenar(col) {
+  if (ordenacaoCol === col) ordenacaoAsc = !ordenacaoAsc; else { ordenacaoCol = col; ordenacaoAsc = true; }
+  aplicarOrdenacao(); renderTabela();
+}
+function aplicarOrdenacao() {
+  filtrados.sort(function(a, b) {
+    var va = a[ordenacaoCol]||'', vb = b[ordenacaoCol]||'';
+    var fa = parseFloat(String(va).replace(/[R$.\s]/g,'').replace(',','.'));
+    if (!isNaN(fa)) { var fb = parseFloat(String(vb).replace(/[R$.\s]/g,'').replace(',','.')); return ordenacaoAsc ? fa-fb : fb-fa; }
+    return ordenacaoAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+  });
+}
+
+function renderTabela() {
+  var inicio = paginaAtual * porPagina;
+  var pagina = filtrados.slice(inicio, inicio + porPagina);
+  var tbody = document.getElementById('base-tbody');
+  if (!pagina.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:#888;text-align:center;padding:20px">Nenhum resultado</td></tr>';
+  } else {
+    var html = '';
+    for (var i = 0; i < pagina.length; i++) {
+      var r = pagina[i];
+      var isObito = (r.SITUACAO||'').toUpperCase().indexOf('OBIT') >= 0;
+      var sitBadge = isObito ? '<span class="badge b-red">' + r.SITUACAO + '</span>' :
+        (r.SITUACAO||'').toUpperCase().indexOf('ATIVO') >= 0 ? '<span class="badge b-green">' + r.SITUACAO + '</span>' :
+        '<span class="badge b-warn">' + (r.SITUACAO||'—') + '</span>';
+      var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+      var margCor = marg > 500 ? 'green' : marg > 0 ? 'warn' : 'red';
+      html += '<tr data-cpf="' + (r.CPF||'') + '" class="' + (isObito ? 'obito' : '') + '">' +
+        '<td class="mono">' + (r.CPF||'—') + '</td>' +
+        '<td>' + (r.SERVIDOR||'—').slice(0,30) + '</td>' +
+        '<td class="mono">' + (r.MATRICULA||'—') + '</td>' +
+        '<td>' + (r.SECRETARIA||'—').slice(0,15) + '</td>' +
+        '<td>' + sitBadge + '</td>' +
+        '<td class="' + margCor + '">R$ ' + brl(marg) + '</td>' +
+        '<td>R$ ' + brl(r.MARGEM_TOTAL||0) + '</td>' +
+        '<td><button class="btn-sm" data-cpf="' + (r.CPF||'') + '" style="padding:2px 8px;font-size:10px">Ver</button></td>' +
+        '</tr>';
+    }
+    tbody.innerHTML = html;
+    tbody.querySelectorAll('tr').forEach(function(tr) {
+      tr.addEventListener('click', function() { abrirDetalhe(this.getAttribute('data-cpf')); });
+    });
+    tbody.querySelectorAll('button').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var cpf = this.getAttribute('data-cpf');
+        document.getElementById('cpf-field').value = cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        irPara('dashboard', document.getElementById('nav-dashboard'));
+        buscar();
+      });
+    });
+  }
+  var totalPag = Math.ceil(filtrados.length / porPagina);
+  document.getElementById('pg-info').textContent = 'Pag ' + (paginaAtual+1) + ' de ' + (totalPag||1) + ' (' + filtrados.length.toLocaleString() + ')';
+  document.getElementById('pg-prev').disabled = paginaAtual === 0;
+  document.getElementById('pg-next').disabled = paginaAtual >= totalPag - 1;
+  document.getElementById('base-count').textContent = filtrados.length.toLocaleString() + ' de ' + todosServidores.length.toLocaleString() + ' servidores';
+}
+
+function pagAnterior() { if (paginaAtual > 0) { paginaAtual--; renderTabela(); } }
+function pagProxima() { if ((paginaAtual+1)*porPagina < filtrados.length) { paginaAtual++; renderTabela(); } }
+
+async function abrirDetalhe(cpf) {
+  if (!cpf) return;
+  cpfDetalhe = cpf;
+  try {
+    var d = await fetch(API + '/base/buscar/' + cpf).then(function(r) { return r.json(); });
+    document.getElementById('det-nome').textContent = d.SERVIDOR || '—';
+    document.getElementById('det-cpf').textContent = 'CPF: ' + cpf;
+    var campos = Object.keys(d).filter(function(k) { return k.indexOf('_') !== 0; });
+    document.getElementById('det-grid').innerHTML = campos.map(function(k) {
+      return '<div class="detail-item"><div class="dk">' + k.replace(/_/g,' ') + '</div><div class="dv">' + (d[k]||'—') + '</div></div>';
+    }).join('');
+    show('modal-det');
+  } catch(e) { alert('Erro ao carregar detalhe.'); }
+}
+
+function consultarDoPainel() {
+  hide('modal-det');
+  document.getElementById('cpf-field').value = cpfDetalhe.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  irPara('dashboard', document.getElementById('nav-dashboard'));
+  buscar();
+}
+
+function exportarFiltrados() {
+  if (!filtrados.length) { alert('Nenhum dado.'); return; }
+  var cols = Object.keys(filtrados[0]).filter(function(k) { return k.indexOf('_') !== 0; });
+  var linhas = [cols.join(';')];
+  filtrados.forEach(function(r) {
+    linhas.push(cols.map(function(c) { return '"' + String(r[c]||'').replace(/"/g,'""') + '"'; }).join(';'));
+  });
+  var blob = new Blob([linhas.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'base_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+async function carregarHistImport() {
+  var el = document.getElementById('import-hist-list');
+  try {
+    var d = await fetch(API + '/historico-importacoes').then(function(r) { return r.json(); });
+    if (!d.length) { el.innerHTML = '<div style="color:#888;font-size:13px">Nenhuma importacao.</div>'; return; }
+    el.innerHTML = d.map(function(r) {
+      var nc = ''; try { var nc2 = JSON.parse(r.novas_colunas||'[]'); if (nc2.length) nc = ' | Novas: ' + nc2.join(', '); } catch(e) {}
+      return '<div class="import-hist-item"><div style="font-size:20px">' + (r.status==='ok'?'✅':'❌') + '</div><div class="ih-info"><div class="ih-file">' + (r.arquivo||'—') + '</div><div class="ih-msg">' + (r.inseridos||0) + ' inseridos, ' + (r.atualizados||0) + ' atualizados' + nc + '</div></div><div style="font-size:11px;color:#888">' + (r.criado||'').slice(0,16) + '</div></div>';
+    }).join('');
+  } catch(e) { el.innerHTML = '<div style="color:#cc2200">Erro ao carregar.</div>'; }
+}
+
+var arquivosSelecionados = [];
+function abrirImport() {
+  show('modal'); hide('import-msg'); hide('novas-cols-wrap'); hide('file-list');
+  arquivosSelecionados = [];
+  document.getElementById('drop-label').textContent = 'Clique ou arraste arquivos aqui';
+  document.getElementById('btn-imp').disabled = true;
+  document.getElementById('btn-imp').textContent = 'Importar';
+}
+function fecharImport() { hide('modal'); }
+function onFileSelect(inp) {
+  if (inp.files.length) { arquivosSelecionados = Array.from(inp.files); mostrarListaArquivos(); }
+}
+function onDrop(e) {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) { arquivosSelecionados = Array.from(e.dataTransfer.files); mostrarListaArquivos(); }
+}
+function mostrarListaArquivos() {
+  var el = document.getElementById('file-list');
+  el.innerHTML = arquivosSelecionados.map(function(f, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px;border-bottom:1px solid #e0e0e0;font-size:12px"><span>📄</span><span style="flex:1">' + f.name + '</span><span style="font-size:10px;color:#888">' + (f.size/1024).toFixed(0) + 'KB</span><span id="st-' + i + '" style="font-size:10px;color:#888">aguardando</span></div>';
+  }).join('');
+  show('file-list');
+  document.getElementById('btn-imp').disabled = false;
+  document.getElementById('btn-imp').textContent = 'Importar ' + arquivosSelecionados.length + ' arquivo(s)';
+}
+async function importarTodos() {
+  if (!arquivosSelecionados.length) return;
+  var btn = document.getElementById('btn-imp');
+  btn.disabled = true;
+  var totalIns = 0, totalAtl = 0, novasCols = [];
+  for (var i = 0; i < arquivosSelecionados.length; i++) {
+    var f = arquivosSelecionados[i];
+    var stEl = document.getElementById('st-' + i);
+    btn.textContent = 'Importando ' + (i+1) + '/' + arquivosSelecionados.length + '...';
+    if (stEl) stEl.innerHTML = '<span style="color:#1a1a1a">importando...</span>';
+    try {
+      var form = new FormData(); form.append('file', f);
+      var d = await fetch(API + '/importar-csv', {method:'POST', body:form}).then(function(r) { return r.json(); });
+      totalIns += d.inseridos||0; totalAtl += d.atualizados||0;
+      if (d.novas_colunas && d.novas_colunas.length) novasCols = novasCols.concat(d.novas_colunas);
+      if (stEl) stEl.innerHTML = '<span style="color:#1a7a1a">OK</span>';
+    } catch(e) {
+      if (stEl) stEl.innerHTML = '<span style="color:#cc2200">erro</span>';
+    }
+  }
+  var msgEl = document.getElementById('import-msg');
+  msgEl.className = 'import-msg import-ok';
+  msgEl.textContent = arquivosSelecionados.length + ' arquivos — ' + totalIns + ' inseridos, ' + totalAtl + ' atualizados.';
+  show('import-msg');
+  if (novasCols.length) {
+    var unicos = novasCols.filter(function(v,i,a){return a.indexOf(v)===i;});
+    document.getElementById('novas-cols-list').innerHTML = unicos.map(function(c){return '<span class="new-tag">+'+c+'</span>';}).join('');
+    show('novas-cols-wrap');
+  }
+  carregarStats();
+  if (document.getElementById('page-base').classList.contains('active')) carregarBase();
+  btn.textContent = 'Concluido!';
+  setTimeout(fecharImport, 3000);
+}
+
+// FILTRO DE FAIXA DE MARGEM
+function aplicarFaixaMargem() {
+  var de = document.getElementById('faixa-de').value;
+  var ate = document.getElementById('faixa-ate').value;
+  var infoEl = document.getElementById('faixa-info');
+
+  var deVal = de !== '' ? parseFloat(de) : null;
+  var ateVal = ate !== '' ? parseFloat(ate) : null;
+
+  // Caso zeradas
+  if (deVal === 0 && ateVal === 0) {
+    filtrados = todosServidores.filter(function(r) {
+      return parseFloat(r.MARGEM_DISPONIVEL || 0) === 0;
+    });
+    ordenacaoCol = 'SERVIDOR'; ordenacaoAsc = true;
+    aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+    if (infoEl) infoEl.innerHTML = '<span style="color:#888">' + filtrados.length.toLocaleString('pt-BR') + ' com margem zerada (R$ 0,00)</span>';
+    return;
+  }
+
+  // Caso negativas
+  if (ateVal !== null && ateVal < 0) {
+    filtrados = todosServidores.filter(function(r) {
+      var m = parseFloat(r.MARGEM_DISPONIVEL || 0);
+      if (deVal !== null) return m >= deVal && m <= ateVal;
+      return m < 0;
+    });
+    ordenacaoCol = 'MARGEM_DISPONIVEL'; ordenacaoAsc = true;
+    aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+    if (infoEl) infoEl.innerHTML = '<span style="color:#cc2200">' + filtrados.length.toLocaleString('pt-BR') + ' com margem negativa</span>';
+    return;
+  }
+
+  // Filtro normal por faixa
+  filtrados = todosServidores.filter(function(r) {
+    var m = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    if (deVal !== null && m < deVal) return false;
+    if (ateVal !== null && m > ateVal) return false;
+    return true;
+  });
+
+  // Ordena maior para menor dentro da faixa
+  ordenacaoCol = 'MARGEM_DISPONIVEL'; ordenacaoAsc = false;
+  aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+
+  var deStr = deVal !== null ? 'R$ ' + deVal.toFixed(2).replace('.', ',') : 'sem limite';
+  var ateStr = ateVal !== null ? 'R$ ' + ateVal.toFixed(2).replace('.', ',') : 'sem limite';
+  if (infoEl) infoEl.innerHTML = '<span style="color:#1a7a1a">' + filtrados.length.toLocaleString('pt-BR') + ' encontrados (' + deStr + ' ate ' + ateStr + ')</span>';
+}
+
+function faixaRapida(de, ate) {
+  var deEl = document.getElementById('faixa-de');
+  var ateEl = document.getElementById('faixa-ate');
+  if (deEl) deEl.value = de !== null ? de : '';
+  if (ateEl) ateEl.value = ate !== null ? ate : '';
+  aplicarFaixaMargem();
+}
+
+function aplicarOrdemMargem() {
+  var val = document.getElementById('filter-margem-ordem').value;
+  var infoEl = document.getElementById('faixa-info');
+  document.getElementById('faixa-de').value = '';
+  document.getElementById('faixa-ate').value = '';
+
+  if (val === 'maior') {
+    filtrados = todosServidores.filter(function(r) {
+      return parseFloat(r.MARGEM_DISPONIVEL || 0) > 0;
+    });
+    ordenacaoCol = 'MARGEM_DISPONIVEL'; ordenacaoAsc = false;
+    aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+    if (infoEl) infoEl.innerHTML = '<span style="color:#1a7a1a">' + filtrados.length.toLocaleString('pt-BR') + ' com margem positiva</span>';
+  } else if (val === 'zerada') {
+    filtrados = todosServidores.filter(function(r) {
+      return parseFloat(r.MARGEM_DISPONIVEL || 0) === 0;
+    });
+    ordenacaoCol = 'SERVIDOR'; ordenacaoAsc = true;
+    aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+    if (infoEl) infoEl.innerHTML = '<span style="color:#888">' + filtrados.length.toLocaleString('pt-BR') + ' com margem zerada</span>';
+  } else if (val === 'negativa') {
+    filtrados = todosServidores.filter(function(r) {
+      return parseFloat(r.MARGEM_DISPONIVEL || 0) < 0;
+    });
+    ordenacaoCol = 'MARGEM_DISPONIVEL'; ordenacaoAsc = true;
+    aplicarOrdenacao(); paginaAtual = 0; renderTabela();
+    if (infoEl) infoEl.innerHTML = '<span style="color:#cc2200">' + filtrados.length.toLocaleString('pt-BR') + ' com margem negativa</span>';
+  } else {
+    limparFaixaMargem();
+  }
+}
+
+function limparFaixaMargem() {
+  document.getElementById('faixa-de').value = '';
+  document.getElementById('faixa-ate').value = '';
+  var infoEl = document.getElementById('faixa-info');
+  if (infoEl) infoEl.textContent = '';
+  ordenacaoCol = '';
+  filtrarBase();
+}
+
+// SEGMENTOS
+var segmentosSalvos = JSON.parse(localStorage.getItem('bravo_segs') || '[]');
+var resultadoAtual = [];
+function adicionarSegmento() {
+  show('construtor');
+  document.getElementById('seg-nome-inp').value = '';
+  hide('preview-result');
+  var secs = {}, tipos = {};
+  todosServidores.forEach(function(r) { if (r.SECRETARIA) secs[r.SECRETARIA]=1; if (r.TIPO_SERVIDOR) tipos[r.TIPO_SERVIDOR]=1; });
+  document.getElementById('f-secretaria').innerHTML = '<option value="">Qualquer</option>' + Object.keys(secs).sort().map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+}
+function aplicarFiltrosSegmento(dados) {
+  var secretaria = (document.getElementById('f-secretaria').value||'').toUpperCase();
+  var banco = (document.getElementById('f-banco').value||'').toUpperCase().trim();
+  var situacao = (document.getElementById('f-situacao-seg').value||'').toUpperCase();
+  var margemMin = parseFloat(document.getElementById('f-margem-min').value)||null;
+  var margemMax = parseFloat(document.getElementById('f-margem-max').value)||null;
+  var lotacao = (document.getElementById('f-lotacao').value||'').toUpperCase().trim();
+  return dados.filter(function(r) {
+    if (secretaria && (r.SECRETARIA||'').toUpperCase() !== secretaria) return false;
+    if (banco) { var tv = ((r.VERBA_DESCONTO||'')+(r.VD||'')).toUpperCase(); if (tv.indexOf(banco)<0) return false; }
+    if (situacao && (r.SITUACAO||'').toUpperCase().indexOf(situacao)<0) return false;
+    if (margemMin !== null && parseFloat(r.MARGEM_DISPONIVEL||0) < margemMin) return false;
+    if (margemMax !== null && parseFloat(r.MARGEM_DISPONIVEL||0) > margemMax) return false;
+    if (lotacao && (r.LOTACAO||'').toUpperCase().indexOf(lotacao)<0) return false;
+    return true;
+  });
+}
+function previewSegmento() {
+  if (!todosServidores.length) { alert('Importe a base primeiro.'); return; }
+  resultadoAtual = aplicarFiltrosSegmento(todosServidores);
+  var el = document.getElementById('preview-result');
+  el.textContent = resultadoAtual.length.toLocaleString('pt-BR') + ' servidores encontrados.';
+  show('preview-result');
+}
+function salvarSegmento() {
+  var nome = document.getElementById('seg-nome-inp').value.trim();
+  if (!nome) { alert('Digite um nome.'); return; }
+  previewSegmento();
+  var seg = {id:Date.now(), nome:nome, filtros:{secretaria:document.getElementById('f-secretaria').value, banco:document.getElementById('f-banco').value, situacao:document.getElementById('f-situacao-seg').value, margemMin:document.getElementById('f-margem-min').value, margemMax:document.getElementById('f-margem-max').value, lotacao:document.getElementById('f-lotacao').value}, total:resultadoAtual.length, criado:new Date().toLocaleString('pt-BR')};
+  segmentosSalvos.unshift(seg);
+  localStorage.setItem('bravo_segs', JSON.stringify(segmentosSalvos));
+  document.getElementById('construtor').style.display = 'none';
+  renderSegmentosSalvos();
+  alert('Sub-planilha salva com ' + resultadoAtual.length + ' servidores!');
+}
+function exportarSegmento() {
+  previewSegmento();
+  if (!resultadoAtual.length) { alert('Nenhum resultado.'); return; }
+  var nome = document.getElementById('seg-nome-inp').value || 'subplanilha';
+  exportarLista(resultadoAtual, nome);
+}
+function exportarLista(lista, nome) {
+  if (!lista.length) return;
+  var cols = Object.keys(lista[0]).filter(function(k){return k.indexOf('_')!==0;});
+  var linhas = [cols.join(';')];
+  lista.forEach(function(r) { linhas.push(cols.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(';')); });
+  var blob = new Blob([linhas.join('\r\n')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = nome.replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+}
+function excluirSegmento(id) {
+  if (!confirm('Excluir?')) return;
+  segmentosSalvos = segmentosSalvos.filter(function(s){return s.id!==id;});
+  localStorage.setItem('bravo_segs', JSON.stringify(segmentosSalvos));
+  renderSegmentosSalvos();
+}
+function exportarSegmentoSalvo(id) {
+  var seg = segmentosSalvos.filter(function(s){return s.id===id;})[0];
+  if (!seg || !todosServidores.length) { alert('Carregue a base primeiro.'); return; }
+  var f = seg.filtros;
+  document.getElementById('f-secretaria').value = f.secretaria||'';
+  document.getElementById('f-banco').value = f.banco||'';
+  document.getElementById('f-situacao-seg').value = f.situacao||'';
+  document.getElementById('f-margem-min').value = f.margemMin||'';
+  document.getElementById('f-margem-max').value = f.margemMax||'';
+  document.getElementById('f-lotacao').value = f.lotacao||'';
+  exportarLista(aplicarFiltrosSegmento(todosServidores), seg.nome);
+}
+function renderSegmentosSalvos() {
+  var el = document.getElementById('segs-salvos-list');
+  if (!segmentosSalvos.length) { el.innerHTML = '<div style="color:#888;font-size:12px;padding:12px">Nenhuma sub-planilha salva.</div>'; return; }
+  el.innerHTML = segmentosSalvos.map(function(s) {
+    var f = s.filtros||{}, tags = [];
+    if (f.secretaria) tags.push('Secretaria: '+f.secretaria);
+    if (f.banco) tags.push('Banco: '+f.banco);
+    if (f.situacao) tags.push('Situacao: '+f.situacao);
+    if (f.margemMin) tags.push('Margem >= R$'+f.margemMin);
+    if (f.margemMax) tags.push('Margem <= R$'+f.margemMax);
+    if (f.lotacao) tags.push('Lotacao: '+f.lotacao);
+    return '<div class="saved-seg-item"><div style="font-size:20px">📋</div><div style="flex:1"><div style="font-size:13px;font-weight:500">' + s.nome + '</div><div style="margin:4px 0">' + tags.map(function(t){return '<span class="tag-filtro">'+t+'</span>';}).join('') + '</div><div style="font-size:11px;color:#888">' + (s.total||0).toLocaleString() + ' servidores • ' + s.criado + '</div></div><div style="display:flex;gap:6px"><button class="btn-ok" style="font-size:11px;padding:4px 10px" data-id="' + s.id + '" onclick="exportarSegmentoSalvo('+s.id+')">Exportar</button><button class="btn-cancel" style="font-size:11px;padding:4px 10px" onclick="excluirSegmento('+s.id+')">Excluir</button></div></div>';
+  }).join('');
+}
+
+
+// OPORTUNIDADES
+var listaOportunidadeAtual = [];
+var tituloOportunidadeAtual = '';
+
+async function carregarOportunidadesAPI() {
+  try {
+    var d = await fetch(API + '/oportunidades').then(function(r) { return r.json(); });
+    if (d.total > 0 || d.quente >= 0) {
+      set('op-quente-total', (d.quente||0).toLocaleString('pt-BR'));
+      set('op-morno-total', (d.morno||0).toLocaleString('pt-BR'));
+      set('op-frio-total', (d.frio||0).toLocaleString('pt-BR'));
+      set('op-sem-total', (d.sem||0).toLocaleString('pt-BR'));
+      set('op-refin-total', (d.refin||0).toLocaleString('pt-BR'));
+      set('op-livre-total', (d.livre||0).toLocaleString('pt-BR'));
+      if (d.atualizado) set('op-atualizado', 'Atualizado: ' + d.atualizado);
+    } else {
+      analisarOportunidades();
+    }
+  } catch(e) {
+    analisarOportunidades();
+  }
+}
+
+async function verificarAlertas() {
+  try {
+    var alertas = await fetch(API + '/oportunidades/alertas').then(function(r) { return r.json(); });
+    if (alertas && alertas.length > 0) {
+      var badge = document.getElementById('alerta-count');
+      var badgeWrap = document.getElementById('alerta-badge');
+      if (badge) badge.textContent = alertas.length;
+      if (badgeWrap) badgeWrap.style.display = 'flex';
+      // Mostra notificacao
+      alertas.forEach(function(a) {
+        mostrarNotificacao(a.msg, a.tipo);
+      });
+    }
+  } catch(e) {}
+}
+
+function mostrarNotificacao(msg, tipo) {
+  var cores = {quente: '#1a7a1a', morno: '#c17f00', frio: '#cc2200'};
+  var cor = cores[tipo] || '#1a1a1a';
+  var notif = document.createElement('div');
+  notif.style.cssText = 'position:fixed;top:20px;right:20px;background:#fff;border:2px solid ' + cor + ';border-radius:8px;padding:14px 18px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:9999;max-width:320px;font-size:13px;cursor:pointer';
+  notif.innerHTML = '<div style="font-weight:600;color:' + cor + ';margin-bottom:4px">Nova Oportunidade!</div><div style="color:#555">' + msg + '</div>';
+  notif.onclick = function() { document.body.removeChild(notif); irPara("oportunidades", document.getElementById("nav-oportunidades")); };
+  document.body.appendChild(notif);
+  setTimeout(function() { if (document.body.contains(notif)) document.body.removeChild(notif); }, 8000);
+}
+
+async function filtrarOportunidadeAPI(tipo) {
+  var titulos = {quente:'Clientes QUENTES',morno:'Clientes MORNOS',frio:'Clientes FRIOS',sem:'Sem Oportunidade',refin:'Refinanciamento',livre:'Margem 100% Livre'};
+  var cores = {quente:'#1a7a1a',morno:'#c17f00',frio:'#cc2200',sem:'#888',refin:'#5a3ea0',livre:'#1a1a1a'};
+  set('op-lista-titulo', '<span style="color:' + (cores[tipo]||'#1a1a1a') + '">Carregando...</span>');
+  try {
+    var d = await fetch(API + '/oportunidades/lista/' + tipo).then(function(r) { return r.json(); });
+    listaOportunidadeAtual = d;
+    tituloOportunidadeAtual = titulos[tipo] || tipo;
+    set('op-lista-titulo', '<span style="color:' + (cores[tipo]||'#1a1a1a') + '">' + tituloOportunidadeAtual + '</span>');
+    set('op-lista-count', d.length.toLocaleString('pt-BR') + ' clientes');
+    show('op-exportar-btn');
+    renderTabelaOportunidades(d);
+  } catch(e) {
+    filtrarOportunidade(tipo);
+  }
+}
+
+function classificarCliente(r) {
+  var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+  var situacao = (r.SITUACAO || '').toUpperCase();
+  var qtdDesc = parseInt(r.QTD_DESCONTO || 0);
+  var isAtivo = situacao.indexOf('ATIVO') >= 0 && situacao.indexOf('OBIT') < 0 && situacao.indexOf('SUSPEN') < 0 && situacao.indexOf('DEMIT') < 0;
+
+  if (!isAtivo) return 'sem';
+  if (marg >= 300) return 'quente';
+  if (marg >= 50) return 'morno';
+  if (marg > 0) return 'frio';
+  return 'sem';
+}
+
+function analisarOportunidades() {
+  if (!todosServidores.length) {
+    alert('Carregue a base primeiro na tela Gestao da Base!');
+    return;
+  }
+  var quente = 0, morno = 0, frio = 0, sem = 0, refin = 0, livre = 0;
+  todosServidores.forEach(function(r) {
+    var classe = classificarCliente(r);
+    if (classe === 'quente') quente++;
+    else if (classe === 'morno') morno++;
+    else if (classe === 'frio') frio++;
+    else sem++;
+    // Refinanciamento
+    var qtd = parseInt(r.QTD_DESCONTO || 0);
+    var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    var sit = (r.SITUACAO||'').toUpperCase();
+    var isAtivo = sit.indexOf('ATIVO') >= 0 && sit.indexOf('OBIT') < 0;
+    if (isAtivo && qtd > 0) refin++;
+    if (isAtivo && qtd === 0 && marg > 0) livre++;
+  });
+  set('op-quente-total', quente.toLocaleString('pt-BR'));
+  set('op-morno-total', morno.toLocaleString('pt-BR'));
+  set('op-frio-total', frio.toLocaleString('pt-BR'));
+  set('op-sem-total', sem.toLocaleString('pt-BR'));
+  set('op-refin-total', refin.toLocaleString('pt-BR'));
+  set('op-livre-total', livre.toLocaleString('pt-BR'));
+}
+
+function filtrarOportunidade(tipo) {
+  if (!todosServidores.length) { alert('Carregue a base primeiro!'); return; }
+  var titulos = {
+    quente: 'Clientes QUENTES — Margem acima de R$ 300',
+    morno: 'Clientes MORNOS — Margem entre R$ 50 e R$ 299',
+    frio: 'Clientes FRIOS — Margem entre R$ 0,01 e R$ 49',
+    sem: 'Sem Oportunidade — Zerada, negativa ou inativo',
+    refinanciamento: 'Refinanciamento — Com contratos ativos',
+    livre: 'Margem 100% Livre — Sem contratos averbados'
+  };
+  var cores = {quente:'#1a7a1a', morno:'#c17f00', frio:'#cc2200', sem:'#888', refinanciamento:'#5a3ea0', livre:'#1a1a1a'};
+
+  listaOportunidadeAtual = todosServidores.filter(function(r) {
+    var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    var sit = (r.SITUACAO||'').toUpperCase();
+    var qtd = parseInt(r.QTD_DESCONTO || 0);
+    var isAtivo = sit.indexOf('ATIVO') >= 0 && sit.indexOf('OBIT') < 0 && sit.indexOf('SUSPEN') < 0;
+    if (tipo === 'quente') return isAtivo && marg >= 300;
+    if (tipo === 'morno') return isAtivo && marg >= 50 && marg < 300;
+    if (tipo === 'frio') return isAtivo && marg > 0 && marg < 50;
+    if (tipo === 'sem') return !isAtivo || marg <= 0;
+    if (tipo === 'refinanciamento') return isAtivo && qtd > 0;
+    if (tipo === 'livre') return isAtivo && qtd === 0 && marg > 0;
+    return false;
+  });
+
+  // Ordena maior margem primeiro
+  listaOportunidadeAtual.sort(function(a, b) {
+    return parseFloat(b.MARGEM_DISPONIVEL||0) - parseFloat(a.MARGEM_DISPONIVEL||0);
+  });
+
+  tituloOportunidadeAtual = titulos[tipo] || '';
+  set('op-lista-titulo', '<span style="color:' + (cores[tipo]||'#1a1a1a') + '">' + tituloOportunidadeAtual + '</span>');
+  set('op-lista-count', listaOportunidadeAtual.length.toLocaleString('pt-BR') + ' clientes');
+  show('op-exportar-btn');
+
+  // Renderiza tabela
+  var tbody = document.getElementById('op-tbody');
+  var pagina = listaOportunidadeAtual.slice(0, 200);
+  if (!pagina.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:#888;text-align:center;padding:20px">Nenhum resultado</td></tr>';
+    return;
+  }
+  var html = '';
+  pagina.forEach(function(r) {
+    var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    var margCor = marg > 300 ? '#1a7a1a' : marg > 50 ? '#c17f00' : marg > 0 ? '#cc2200' : '#888';
+    var classe = classificarCliente(r);
+    var badges = {quente:'<span style="background:rgba(26,122,26,.1);color:#1a7a1a;border:1px solid rgba(26,122,26,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">QUENTE</span>', morno:'<span style="background:rgba(193,127,0,.1);color:#c17f00;border:1px solid rgba(193,127,0,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">MORNO</span>', frio:'<span style="background:rgba(204,34,0,.1);color:#cc2200;border:1px solid rgba(204,34,0,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">FRIO</span>', sem:'<span style="background:rgba(0,0,0,.06);color:#888;border:1px solid rgba(0,0,0,.15);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">SEM OPORT.</span>'};
+    html += '<tr style="border-bottom:1px solid rgba(0,0,0,.06)">' +
+      '<td style="padding:8px 12px;font-family:var(--mono);font-size:11px">' + (r.CPF||'—') + '</td>' +
+      '<td style="padding:8px 12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.SERVIDOR||'—').slice(0,30) + '</td>' +
+      '<td style="padding:8px 12px;font-size:11px">' + (r.SECRETARIA||'—').slice(0,12) + '</td>' +
+      '<td style="padding:8px 12px;font-size:11px">' + (r.SITUACAO||'—').slice(0,15) + '</td>' +
+      '<td style="padding:8px 12px;font-weight:700;color:' + margCor + '">R$ ' + brl(marg) + '</td>' +
+      '<td style="padding:8px 12px">R$ ' + brl(r.MARGEM_TOTAL||0) + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + (r.QTD_DESCONTO||0) + '</td>' +
+      '<td style="padding:8px 12px">' + (badges[classe]||'') + '</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = html;
+  set('op-paginacao', pagina.length < listaOportunidadeAtual.length ? 'Exibindo ' + pagina.length + ' de ' + listaOportunidadeAtual.length.toLocaleString('pt-BR') + '. Exporte para ver todos.' : 'Total: ' + listaOportunidadeAtual.length.toLocaleString('pt-BR') + ' clientes');
+}
+
+function renderTabelaOportunidades(lista) {
+  var tbody = document.getElementById('op-tbody');
+  var pagina = lista.slice(0, 200);
+  if (!pagina.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:#888;text-align:center;padding:20px">Nenhum resultado</td></tr>';
+    return;
+  }
+  var html = '';
+  pagina.forEach(function(r) {
+    var marg = parseFloat(r.MARGEM_DISPONIVEL || 0);
+    var margCor = marg >= 300 ? '#1a7a1a' : marg >= 50 ? '#c17f00' : marg > 0 ? '#cc2200' : '#888';
+    var classe = classificarCliente(r);
+    var badges = {
+      quente:'<span style="background:rgba(26,122,26,.1);color:#1a7a1a;border:1px solid rgba(26,122,26,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">QUENTE</span>',
+      morno:'<span style="background:rgba(193,127,0,.1);color:#c17f00;border:1px solid rgba(193,127,0,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">MORNO</span>',
+      frio:'<span style="background:rgba(204,34,0,.1);color:#cc2200;border:1px solid rgba(204,34,0,.25);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">FRIO</span>',
+      sem:'<span style="background:rgba(0,0,0,.06);color:#888;border:1px solid rgba(0,0,0,.15);border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">SEM OPORT.</span>'
+    };
+    html += '<tr style="border-bottom:1px solid rgba(0,0,0,.06)">' +
+      '<td style="padding:8px 12px;font-family:var(--mono);font-size:11px">' + (r.CPF||'—') + '</td>' +
+      '<td style="padding:8px 12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (r.SERVIDOR||'—').slice(0,30) + '</td>' +
+      '<td style="padding:8px 12px;font-size:11px">' + (r.SECRETARIA||'—').slice(0,12) + '</td>' +
+      '<td style="padding:8px 12px;font-size:11px">' + (r.SITUACAO||'—').slice(0,15) + '</td>' +
+      '<td style="padding:8px 12px;font-weight:700;color:' + margCor + '">R$ ' + brl(marg) + '</td>' +
+      '<td style="padding:8px 12px">R$ ' + brl(r.MARGEM_TOTAL||0) + '</td>' +
+      '<td style="padding:8px 12px;text-align:center">' + (r.QTD_DESCONTO||0) + '</td>' +
+      '<td style="padding:8px 12px">' + (badges[classe]||'') + '</td>' +
+      '</tr>';
+  });
+  tbody.innerHTML = html;
+  set('op-paginacao', pagina.length < lista.length ? 'Exibindo ' + pagina.length + ' de ' + lista.length.toLocaleString('pt-BR') + '. Exporte para ver todos.' : 'Total: ' + lista.length.toLocaleString('pt-BR') + ' clientes');
+}
+
+function exportarOportunidades(tipo) {
+  filtrarOportunidade(tipo);
+  exportarLista(listaOportunidadeAtual, 'oportunidades_' + tipo);
+}
+
+function exportarListaAtual() {
+  if (!listaOportunidadeAtual.length) { alert('Nenhuma lista carregada.'); return; }
+  exportarLista(listaOportunidadeAtual, 'oportunidades_' + tituloOportunidadeAtual.replace(/[^a-zA-Z0-9]/g,'_').slice(0,30));
+}
+
+
+// LEADS
+var todosLeads = [];
+
+async function carregarLeads() {
+  try {
+    var d = await fetch('http://localhost:3000/leads').then(function(r) { return r.json(); });
+    todosLeads = d;
+    var total = d.length;
+    var aguardando = d.filter(function(l) { return l.status === 'aguardando_digitacao'; }).length;
+    var andamento = d.filter(function(l) { return l.status === 'em_andamento'; }).length;
+    var concluidos = d.filter(function(l) { return l.status === 'concluido'; }).length;
+    set('ld-total', total.toLocaleString('pt-BR'));
+    set('ld-aguardando', aguardando.toLocaleString('pt-BR'));
+    set('ld-andamento', andamento.toLocaleString('pt-BR'));
+    set('ld-concluidos', concluidos.toLocaleString('pt-BR'));
+    renderLeads(d);
+  } catch(e) {
+    document.getElementById('leads-empty').textContent = 'Bot WhatsApp offline. Inicie o bot para ver os leads.';
+  }
+}
+
+function renderLeads(lista) {
+  var tbody = document.getElementById('leads-tbody');
+  var empty = document.getElementById('leads-empty');
+  if (!lista.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  var statusCor = {aguardando_digitacao: '#1a7a1a', em_andamento: '#c17f00', concluido: '#888'};
+  var statusLabel = {aguardando_digitacao: 'Aguardando Digitacao', em_andamento: 'Em Andamento', concluido: 'Concluido'};
+  tbody.innerHTML = lista.map(function(l, i) {
+    var cor = statusCor[l.status] || '#888';
+    var label = statusLabel[l.status] || l.status;
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,.06)">' +
+      '<td style="padding:8px 12px;font-size:11px;color:#888">' + (l.data||'—').slice(0,16) + '</td>' +
+      '<td style="padding:8px 12px;font-weight:500">' + (l.nome||'—') + '</td>' +
+      '<td style="padding:8px 12px;font-family:var(--mono);font-size:11px">' + (l.cpf||'—') + '</td>' +
+      '<td style="padding:8px 12px;font-family:var(--mono);font-size:11px">' + (l.telefone||'—') + '</td>' +
+      '<td style="padding:8px 12px;font-weight:700;color:#1a7a1a">R$ ' + brl(l.margem||0) + '</td>' +
+      '<td style="padding:8px 12px">' + (l.parcelas||'—') + 'x</td>' +
+      '<td style="padding:8px 12px;font-size:11px">' + (l.banco||'—') + '</td>' +
+      '<td style="padding:8px 12px"><span style="background:rgba(0,0,0,.06);color:' + cor + ';border:1px solid ' + cor + ';border-radius:12px;font-size:10px;padding:2px 8px;font-weight:600">' + label + '</span></td>' +
+      '<td style="padding:8px 12px;display:flex;gap:4px">' +
+        '<button class="btn-sm" style="font-size:10px;padding:2px 8px" onclick="marcarAndamento(' + i + ')">Iniciar</button>' +
+        '<button class="btn-sm" style="font-size:10px;padding:2px 8px;border-color:#1a7a1a;color:#1a7a1a" onclick="marcarConcluido(' + i + ')">Concluido</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function marcarAndamento(idx) {
+  if (todosLeads[idx]) {
+    todosLeads[idx].status = 'em_andamento';
+    renderLeads(todosLeads);
+  }
+}
+
+function marcarConcluido(idx) {
+  if (todosLeads[idx]) {
+    todosLeads[idx].status = 'concluido';
+    renderLeads(todosLeads);
+    // Atualiza KPIs
+    var aguardando = todosLeads.filter(function(l) { return l.status === 'aguardando_digitacao'; }).length;
+    var andamento = todosLeads.filter(function(l) { return l.status === 'em_andamento'; }).length;
+    var concluidos = todosLeads.filter(function(l) { return l.status === 'concluido'; }).length;
+    set('ld-aguardando', aguardando.toLocaleString('pt-BR'));
+    set('ld-andamento', andamento.toLocaleString('pt-BR'));
+    set('ld-concluidos', concluidos.toLocaleString('pt-BR'));
+  }
+}
+
+function exportarLeads() {
+  if (!todosLeads.length) { alert('Nenhum lead para exportar.'); return; }
+  exportarLista(todosLeads, 'leads_bravo');
+}
+
+// WHATSAPP
+async function carregarStatusWA() {
+  try {
+    var d = await fetch(API + '/whatsapp/status-bot').then(function(r) { return r.json(); });
+    var procEl = document.getElementById('wa-proc');
+    var iniciarBtn = document.getElementById('btn-wa-iniciar');
+    var pararBtn = document.getElementById('btn-wa-parar');
+    if (procEl) procEl.innerHTML = d.processo_rodando ? '<span class="badge b-green">Rodando</span>' : '<span class="badge b-red">Parado</span>';
+    if (iniciarBtn) iniciarBtn.disabled = d.processo_rodando;
+    if (pararBtn) pararBtn.disabled = !d.processo_rodando;
+    if (d.whatsapp_conectado) {
+      set('wa-status', '<span class="badge b-green">Conectado</span>');
+      hide('qr-section');
+      try {
+        var s = await fetch(WA_URL + '/status').then(function(r) { return r.json(); });
+        set('wa-numero', s.numero || '—');
+      } catch(e) {}
+    } else if (d.processo_rodando) {
+      set('wa-status', '<span class="badge b-warn">Aguardando QR</span>');
+      // Tenta buscar QR Code
+      verificarQR();
+    } else {
+      set('wa-status', '<span class="badge b-gray">Bot parado</span>');
+      hide('qr-section');
+    }
+  } catch(e) {
+    set('wa-proc', '<span class="badge b-red">Offline</span>');
+    set('wa-status', '<span class="badge b-red">Offline</span>');
+    hide('qr-section');
+  }
+}
+
+var qrInstance = null;
+async function verificarQR() {
+  try {
+    var d = await fetch(WA_URL + '/qr').then(function(r) { return r.json(); });
+    if (d.ok && (d.qr_img || d.qr)) {
+      show('qr-section');
+      var img = document.getElementById('qr-img');
+      if (d.qr_img) {
+        // base64 PNG direto do bot — sempre funciona
+        if (img) img.src = d.qr_img;
+      } else {
+        // fallback: tenta gerar imagem pelo canvas com qrcodejs
+        var canvas = document.getElementById('qr-canvas');
+        canvas.style.display = '';
+        canvas.innerHTML = '';
+        if (qrInstance) { try { qrInstance.clear(); } catch(e2) {} }
+        try {
+          qrInstance = new QRCode(canvas, { text: d.qr, width: 200, height: 200,
+            colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+          setTimeout(function() {
+            var cvs = canvas.querySelector('canvas');
+            if (cvs && img) { img.src = cvs.toDataURL(); canvas.style.display = 'none'; }
+          }, 400);
+        } catch(e3) {}
+      }
+    } else {
+      hide('qr-section');
+    }
+  } catch(e) {
+    hide('qr-section');
+  }
+}
+
+async function iniciarBot() {
+  var msgEl = document.getElementById('wa-bot-msg');
+  msgEl.style.display = '';
+  msgEl.style.color = '#888';
+  msgEl.textContent = 'Iniciando bot...';
+  try {
+    var d = await fetch(API + '/whatsapp/iniciar', {method:'POST'}).then(function(r){return r.json();});
+    msgEl.style.color = d.ok ? '#1a7a1a' : '#cc2200';
+    msgEl.textContent = d.mensagem || (d.ok ? 'Bot iniciado!' : 'Erro ao iniciar');
+    setTimeout(carregarStatusWA, 2000);
+    setTimeout(carregarLogBot, 3000);
+    // Verifica status e QR a cada 3s por 120s
+    var checks = 0;
+    var interval = setInterval(function() {
+      carregarStatusWA();
+      carregarLogBot();
+      verificarQR();
+      checks++;
+      if (checks > 40) clearInterval(interval);
+    }, 3000);
+  } catch(e) {
+    msgEl.style.color = '#cc2200';
+    msgEl.textContent = 'Erro: ' + e.message;
+  }
+}
+
+async function pararBot() {
+  if (!confirm('Parar o bot WhatsApp?')) return;
+  try {
+    var d = await fetch(API + '/whatsapp/parar', {method:'POST'}).then(function(r){return r.json();});
+    var msgEl = document.getElementById('wa-bot-msg');
+    msgEl.style.display = '';
+    msgEl.style.color = '#888';
+    msgEl.textContent = d.mensagem || 'Bot parado.';
+    setTimeout(carregarStatusWA, 1000);
+  } catch(e) {}
+}
+
+async function carregarLogBot() {
+  try {
+    var d = await fetch(API + '/whatsapp/log').then(function(r){return r.json();});
+    var el = document.getElementById('wa-log');
+    if (el && d.linhas && d.linhas.length) {
+      el.innerHTML = d.linhas.map(function(l) {
+        var cor = l.indexOf('conectado') >= 0 || l.indexOf('Conectado') >= 0 ? '#4caf50' :
+                  l.indexOf('Erro') >= 0 || l.indexOf('erro') >= 0 ? '#f85149' :
+                  l.indexOf('QR') >= 0 ? '#ff9800' : '#adbac7';
+        return '<div style="color:' + cor + '">' + l + '</div>';
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+  } catch(e) {}
+}
+async function enviarWA() {
+  var tel = (document.getElementById('wa-tel').value||'').replace(/\D/g,'');
+  var cpf = (document.getElementById('wa-cpf').value||'').replace(/\D/g,'');
+  var msg = document.getElementById('wa-msg').value||'';
+  var msgEl = document.getElementById('wa-send-msg');
+  if (!tel) { alert('Informe o telefone!'); return; }
+  if (!cpf && !msg) { alert('Informe CPF ou mensagem!'); return; }
+  msgEl.style.display=''; msgEl.style.color='#888'; msgEl.textContent='Enviando...';
+  try {
+    var body = {telefone: tel};
+    if (cpf) body.cpf = cpf; else body.mensagem = msg;
+    var r = await fetch(WA_URL + '/enviar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}).then(function(r){return r.json();});
+    if (r.ok) { msgEl.style.color='#1a7a1a'; msgEl.textContent='Enviado!'; document.getElementById('wa-tel').value=''; document.getElementById('wa-cpf').value=''; document.getElementById('wa-msg').value=''; }
+    else { msgEl.style.color='#cc2200'; msgEl.textContent='Erro: ' + (r.erro||'desconhecido'); }
+  } catch(e) { msgEl.style.color='#cc2200'; msgEl.textContent='Bot offline. Inicie primeiro.'; }
+}
+async function carregarConversasWA() {
+  var el = document.getElementById('wa-conversas-lista');
+  el.innerHTML = '<div style="color:#888;font-size:12px">Carregando...</div>';
+  try {
+    var d = await fetch(WA_URL + '/conversas').then(function(r){return r.json();});
+    if (!d.length) { el.innerHTML = '<div style="color:#888;font-size:12px">Nenhuma conversa ainda.</div>'; return; }
+    var grupos = {};
+    d.forEach(function(c) { if (!grupos[c.telefone]) grupos[c.telefone]=[]; grupos[c.telefone].push(c); });
+    var html = '';
+    Object.keys(grupos).forEach(function(tel) {
+      var msgs = grupos[tel];
+      var ultima = msgs[msgs.length-1];
+      html += '<div style="padding:10px 12px;border-bottom:1px solid #e8e8e8">' +
+        '<div style="display:flex;justify-content:space-between"><span style="font-size:13px;font-weight:500">' + tel + '</span><span style="font-size:10px;color:#888">' + (ultima.data||'') + '</span></div>' +
+        '<div style="font-size:11px;color:#888;margin-top:2px">' + (ultima.direcao==='enviada'?'→ ':'← ') + (ultima.mensagem||'').slice(0,60) + '</div>' +
+        '<span class="badge b-blue" style="margin-top:4px;font-size:9px">' + msgs.length + ' msgs</span></div>';
+    });
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<div style="color:#cc2200;font-size:12px">Bot offline.</div>'; }
+}
+
+// ROBOS
+async function carregarAgendador() {
+  try {
+    var d = await fetch(API + '/agendador/status').then(function(r){return r.json();});
+    set('ag-ultima', d.ultima_verificacao||'—');
+    set('ag-hoje', (d.arquivos_hoje||[]).length + ' arquivo(s)');
+  } catch(e) {}
+}
+async function forcarImportacao() {
+  try {
+    await fetch(API + '/agendador/forcar', {method:'POST'});
+    await carregarAgendador();
+    await carregarStats();
+    alert('Verificacao concluida!');
+  } catch(e) { alert('Erro: '+e.message); }
+}
+
+// CONFIG
+function salvarCredenciais() {
+  var c = {user: document.getElementById('cfg-user').value, pass: document.getElementById('cfg-pass').value};
+  localStorage.setItem('bravo_creds', JSON.stringify(c));
+  show('cfg-msg'); setTimeout(function(){hide('cfg-msg');}, 2000);
+}
+async function carregarInfoSistema() {
+  try {
+    var d = await fetch(API + '/base/stats').then(function(r){return r.json();});
+    set('cfg-total', (d.total||0).toLocaleString('pt-BR') + ' registros');
+    set('cfg-cols', (d.colunas||0) + ' colunas');
+    set('cfg-imps', (d.total_importacoes||0) + ' importacoes');
+  } catch(e) {}
+}
+
+// INIT
+renderSegmentosSalvos();
+carregarStats();
+setInterval(carregarStats, 30000);
+(async function() {
+  try {
+    var d = await fetch(API + '/base/stats').then(function(r){return r.json();});
+    if (d.total > 0) await carregarBase();
+  } catch(e) {}
+})();
+
+// Verifica alertas automaticamente a cada 5 minutos
+setInterval(verificarAlertas, 5 * 60 * 1000);
+// Verifica na inicializacao
+setTimeout(verificarAlertas, 3000);
+</script>
+</body>
+</html>
