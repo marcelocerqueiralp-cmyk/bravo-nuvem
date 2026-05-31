@@ -22,8 +22,7 @@ PASTA_ERR = "/tmp/importacao/erro"
 
 for p in [PASTA_IN, PASTA_OK, PASTA_ERR]:
     os.makedirs(p, exist_ok=True)
-
- def get_db():
+def get_db():
      conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
      return conn
  def init_db():
