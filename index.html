@@ -805,7 +805,7 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
 </div>
 
 <script>
-var API = 'http://localhost:8000';
+var API = 'https://bravo-nuvem.onrender.com';
 var WA_URL = 'http://localhost:3000';
 var FIXAS = {'CPF':1,'SERVIDOR':1,'MATRICULA':1,'SECRETARIA':1,'LOTACAO':1,'SITUACAO':1,'TIPO_SERVIDOR':1,'MARGEM_DISPONIVEL':1,'MARGEM_REAL':1,'MARGEM_TOTAL':1,'MARG_DISP_TABELA':1,'PCT_MARGEM':1,'QTD_DESCONTO':1,'VALOR_DESCONTO':1,'DESCONTOS':1,'VD':1,'VD_DESCONTO':1,'VERBA_DESCONTO':1,'MOTIVO_SITUACAO':1,'SIT_DESCONTO':1};
 
@@ -1715,7 +1715,7 @@ var todosLeads = [];
 
 async function carregarLeads() {
   try {
-    var d = await fetch('http://localhost:3000/leads').then(function(r) { return r.json(); });
+    var d = await fetch('http://https://bravo-nuvem.onrender.com:3000/leads').then(function(r) { return r.json(); });
     todosLeads = d;
     var total = d.length;
     var aguardando = d.filter(function(l) { return l.status === 'aguardando_digitacao'; }).length;
