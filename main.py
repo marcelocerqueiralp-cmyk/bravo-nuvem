@@ -305,8 +305,8 @@ async def rodar_bot(job_id, cpf, operador):
         _job_status[job_id].update({"status":"concluido","dados":{}})
 
 async def rodar_bots_paralelo(job_id, cpf, operador):
-    await rodar_bot(job_id, cpf, operador) 
-@app.get("/")
+    await rodar_bot(job_id, cpf, operador)
+    @app.get("/")
 def root():
     return {"app":"ConsigPlat","status":"online"}
 
