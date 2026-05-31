@@ -26,7 +26,9 @@ for p in [PASTA_IN, PASTA_OK, PASTA_ERR]:
 def get_db():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
-    def init_db():
+    def get_db():
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    return conn
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
