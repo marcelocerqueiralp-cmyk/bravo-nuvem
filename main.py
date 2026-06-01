@@ -8,12 +8,16 @@ from datetime import datetime
 import threading, time
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from consiglog_bot import consultar_todos_convenios
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("consigplat")
 
 app = FastAPI(title="ConsigPlat API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+from whatsapp_routes import router_wa
+app.include_router(router_wa)
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 PASTA_IN  = "/tmp/importacao"
@@ -262,31 +266,118 @@ async def rodar_bots_paralelo(job_id, cpf, operador):
     _job_status[job_id] = {"status":"rodando","logs":[],"dados":None}
     def push(m):
         _job_status[job_id]["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {m}")
+    
     push("Consultando CPF: " + cpf)
-    await asyncio.sleep(0.2)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
-            row = cur.fetchone()
-    if row:
-        base = json.loads(row["dados"])
-        livre = limpar_valor(base.get("MARGEM_DISPONIVEL",0))
-        util  = limpar_valor(base.get("VALOR_DESCONTO",0))
-        total = limpar_valor(base.get("MARGEM_TOTAL",0))
-        push(f"Encontrado: {base.get('SERVIDOR','—')}")
-        push(f"Margem disponivel: R$ {livre:.2f}")
-        dados = {"banco":"ConsigLog","competencia":datetime.now().strftime("%m/%Y"),
-                 "margem_livre":livre,"margem_util":util,"margem_total":total}
+    await asyncio.sleep(0.1)
+    
+    # Carrega contas salvas nas configurações
+    contas = carregar_contas()
+    contas_ativas = [c for c in contas if c.get("ativo", True) and c.get("usuario") and c.get("senha")]
+    
+    sucesso_real = False
+    
+    if contas_ativas:
+        push(f"Disparando robô real ConsigLog para {len(contas_ativas)} convênio(s) ativo(s)...")
+        try:
+            # Chama o Playwright real e passa a função push para exibir o log em tempo real na tela
+            res = await consultar_todos_convenios(cpf, contas_ativas, push_log=push)
+            consolidado = res.get("consolidado", {})
+            resultados = res.get("resultados", [])
+            
+            # Verifica se pelo menos uma conta retornou status "ok"
+            ok_results = [r for r in resultados if r.get("status") == "ok"]
+            
+            if ok_results and consolidado.get("servidor"):
+                sucesso_real = True
+                livre = consolidado.get("margem_livre", 0.0)
+                util = consolidado.get("margem_util", 0.0)
+                total = consolidado.get("margem_total", 0.0)
+                
+                push(f"Robô concluído com sucesso!")
+                push(f"Servidor: {consolidado.get('servidor')}")
+                push(f"Margem disponível: R$ {livre:.2f}")
+                
+                # Monta os dados para salvar e retornar
+                dados = {
+                    "banco": consolidado.get("banco", "ConsigLog Real"),
+                    "competencia": consolidado.get("competencia", datetime.now().strftime("%m/%Y")),
+                    "margem_livre": livre,
+                    "margem_util": util,
+                    "margem_total": total
+                }
+                
+                # 1. Salva a consulta no histórico de consultas
+                with get_db() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                            (job_id, cpf, "robo_playwright", dados["banco"], dados["competencia"], livre, util, total, "ok", operador))
+                        
+                        # 2. Atualiza a tabela clientes
+                        cur.execute("SELECT id FROM clientes WHERE cpf=%s", (cpf,))
+                        if not cur.fetchone():
+                            cur.execute("INSERT INTO clientes (cpf,nome,nasc,nb,especie,situacao) VALUES (%s,%s,%s,%s,%s,%s)",
+                                (cpf, consolidado.get("servidor"), "", "", "", consolidado.get("situacao")))
+                        else:
+                            cur.execute("UPDATE clientes SET nome=%s, situacao=%s WHERE cpf=%s",
+                                (consolidado.get("servidor"), consolidado.get("situacao"), cpf))
+                        
+                        # 3. Enriquece/salva na base_servidores para atualizar a lista do CRM
+                        cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
+                        row_serv = cur.fetchone()
+                        dados_serv = json.loads(row_serv["dados"]) if row_serv else {}
+                        
+                        # Atualiza os campos raspados no JSON mantendo os outros importados do CSV intactos
+                        dados_serv.update({
+                            "CPF": cpf,
+                            "SERVIDOR": consolidado.get("servidor"),
+                            "SECRETARIA": consolidado.get("secretaria"),
+                            "MATRICULA": consolidado.get("matricula"),
+                            "SITUACAO": consolidado.get("situacao"),
+                            "MARGEM_DISPONIVEL": livre,
+                            "MARGEM_TOTAL": total,
+                            "VALOR_DESCONTO": util
+                        })
+                        jstr = json.dumps(dados_serv, ensure_ascii=False)
+                        if row_serv:
+                            cur.execute("UPDATE base_servidores SET dados=%s, importado_em=to_char(now(),'DD/MM/YYYY HH24:MI:SS') WHERE cpf=%s", (jstr, cpf))
+                        else:
+                            cur.execute("INSERT INTO base_servidores (cpf,dados) VALUES (%s,%s)", (cpf, jstr))
+                        
+                        conn.commit()
+                
+                _job_status[job_id].update({"status":"concluido","dados":dados})
+                push("Processo finalizado!")
+            else:
+                push("Nenhum convênio respondeu com sucesso (credenciais incorretas ou portal indisponível).")
+        except Exception as e:
+            push(f"Erro ao rodar automação Playwright: {e}")
+            
+    if not sucesso_real:
+        push("Recorrendo à busca local em cache (fallback)...")
+        # Fallback para os dados importados locais
         with get_db() as conn:
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET status=%s",
-                    (job_id,cpf,"base_importada",dados["banco"],dados["competencia"],livre,util,total,"ok",operador,"ok"))
-            conn.commit()
-        _job_status[job_id].update({"status":"concluido","dados":dados})
-        push("Concluido!")
-    else:
-        push("CPF nao encontrado.")
-        _job_status[job_id].update({"status":"concluido","dados":{}})
+                cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
+                row = cur.fetchone()
+        if row:
+            base = json.loads(row["dados"])
+            livre = limpar_valor(base.get("MARGEM_DISPONIVEL", 0))
+            util = limpar_valor(base.get("VALOR_DESCONTO", 0))
+            total = limpar_valor(base.get("MARGEM_TOTAL", 0))
+            push(f"Encontrado em cache local: {base.get('SERVIDOR','—')}")
+            push(f"Margem disponível (importada): R$ {livre:.2f}")
+            dados = {"banco":"Cache Importado","competencia":datetime.now().strftime("%m/%Y"),
+                     "margem_livre":livre,"margem_util":util,"margem_total":total}
+            with get_db() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET status=%s",
+                        (job_id,cpf,"cache_local",dados["banco"],dados["competencia"],livre,util,total,"ok",operador,"ok"))
+                conn.commit()
+            _job_status[job_id].update({"status":"concluido","dados":dados})
+            push("Concluído (via base importada)!")
+        else:
+            push("CPF não localizado na base local importada.")
+            _job_status[job_id].update({"status":"concluido","dados":{}})
 
 @app.get("/")
 def root():

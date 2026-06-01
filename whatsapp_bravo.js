@@ -31,15 +31,15 @@ function log(msg) {
   try { fs.appendFileSync(LOG_PATH, linha + '\n'); } catch(e) {}
 }
 
-// ─── Banco SQLite (assíncrono) ─────────────────────────────────────────────────
+// ─── Banco SQLite (assíncrono e síncrono consolidado) ──────────────────────────
 var dbPath = fs.existsSync(DB_PATH) ? DB_PATH : DB_FALLBACK;
 log('Conectando ao banco: ' + dbPath);
 var db = new sqlite3.Database(dbPath, function(err) {
   if (err) {
     log('[ERRO] Banco: ' + err.message);
   } else {
-    log('Banco conectado: ' + dbPath);
-    // Cria tabela DEPOIS que o banco abriu
+    log('Banco conectado com sucesso: ' + dbPath);
+    // Cria tabela e índice dentro do callback de conexão aberta para evitar condições de corrida
     db.run(`CREATE TABLE IF NOT EXISTS conversas_whatsapp (
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
       telefone  TEXT NOT NULL,
@@ -47,7 +47,10 @@ var db = new sqlite3.Database(dbPath, function(err) {
       mensagem  TEXT NOT NULL,
       status    TEXT DEFAULT 'enviada',
       data      DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, function(e) { if (e) log('[DB] Erro ao criar tabela: ' + e.message); });
+    )`, function(e) { 
+      if (e) log('[DB] Erro ao criar tabela: ' + e.message); 
+      else log('[DB] Tabela conversas_whatsapp garantida.');
+    });
     db.run(`CREATE INDEX IF NOT EXISTS idx_wa_tel ON conversas_whatsapp(telefone)`);
   }
 });
@@ -99,7 +102,7 @@ var chromePaths = [
   'C:\\Users\\' + (process.env.USERNAME||'') + '\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
 ];
 var chromePath = chromePaths.find(function(p) { return fs.existsSync(p); });
-if (chromePath) { log('Chrome encontrado: ' + chromePath); }
+if (chromePath) { log('Chrome encontrado para Puppeteer: ' + chromePath); }
 else { log('[AVISO] Chrome nao encontrado nos caminhos padrao — puppeteer vai tentar sozinho'); }
 
 var client = new Client({
@@ -120,23 +123,23 @@ client.on('qr', function(qr) {
   qrRaw     = qr;
   botStatus = 'qr_pendente';
   QRCode.toDataURL(qr, { width: 256, margin: 2 }, function(err, url) {
-    if (!err) { qrImg = url; log('QR imagem OK'); }
+    if (!err) { qrImg = url; log('QR imagem gerada com sucesso.'); }
   });
 });
 
 client.on('loading_screen', function(pct) {
   botStatus = 'carregando';
-  log('Carregando... ' + pct + '%');
+  log('Carregando tela do WhatsApp Web... ' + pct + '%');
 });
 
 client.on('authenticated', function() {
-  log('Autenticado!');
+  log('Sessão autenticada!');
   botStatus = 'autenticando';
   qrRaw = null; qrImg = null;
 });
 
 client.on('auth_failure', function(msg) {
-  log('[ERRO] Auth: ' + msg);
+  log('[ERRO] Falha de autenticação: ' + msg);
   botStatus = 'offline';
 });
 
@@ -144,16 +147,16 @@ client.on('ready', function() {
   numero    = client.info && client.info.wid ? client.info.wid.user : 'desconhecido';
   botStatus = 'online';
   qrRaw = null; qrImg = null;
-  log('Bot ONLINE! Numero: ' + numero);
+  log('Bot ONLINE e conectado com o número: ' + numero);
 });
 
 client.on('disconnected', function(reason) {
-  log('Desconectado: ' + reason);
+  log('Bot desconectado: ' + reason);
   botStatus = 'offline';
   numero = null;
   setTimeout(function() {
-    log('Reconectando...');
-    client.initialize().catch(function(e) { log('[ERRO] ' + e.message); });
+    log('Tentando reconectar...');
+    client.initialize().catch(function(e) { log('[ERRO RECONEXÃO] ' + e.message); });
   }, 15000);
 });
 
@@ -161,7 +164,7 @@ client.on('message', function(msg) {
   if (msg.isGroupMsg) return;
   var tel   = msg.from.replace('@c.us','').replace('@s.whatsapp.net','');
   var corpo = (msg.body || '').trim();
-  log('Recebido de ' + tel + ': ' + corpo.slice(0,60));
+  log('Mensagem recebida de ' + tel + ': ' + corpo.slice(0,60));
   salvar(tel, 'recebida', corpo, 'recebida');
 
   var pos = ['sim','s','quero','ok','aceito','confirmo','1','yes'];
@@ -169,13 +172,35 @@ client.on('message', function(msg) {
     var resp = 'Ótimo! 😊 Um consultor entrará em contato em breve.\n_Bravo Consignado_ 🤝';
     msg.reply(resp).then(function() {
       salvar(tel, 'enviada', resp, 'enviada');
-    }).catch(function(e) { log('[ERRO] Reply: ' + e.message); });
+      log('Resposta automática de interesse enviada para ' + tel);
+    }).catch(function(e) { log('[ERRO] Responder mensagem: ' + e.message); });
   }
 });
 
 // ─── Express ──────────────────────────────────────────────────────────────────
 var app = express();
-app.use(cors({ origin: '*', methods: ['GET','POST','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
+
+// CORS restrito e seguro
+const allowedOrigins = [
+  'http://localhost:8000',
+  'http://127.0.0.1:8000',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://bravo-nuvem.onrender.com'
+];
+app.use(cors({
+  origin: function(origin, callback) {
+    if(!origin) return callback(null, true);
+    if(allowedOrigins.indexOf(origin) === -1){
+      var msg = 'A política CORS para este site não permite acesso da origem especificada.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET','POST','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
 app.options('*', cors());
 app.use(express.json({ limit: '5mb' }));
 
@@ -237,6 +262,42 @@ app.get('/conversas', function(req, res) {
   } else {
     todasConversas(function(rows) { res.json(rows); });
   }
+});
+
+// Nova rota /leads para recuperar as conversas de interesse capturadas
+app.get('/leads', function(req, res) {
+  log('[API] Requisitando leads do SQLite...');
+  db.all(
+    `SELECT DISTINCT telefone, mensagem, data, status FROM conversas_whatsapp 
+     WHERE direcao = 'recebida' AND (
+       lower(mensagem) = 'sim' OR lower(mensagem) = 's' OR 
+       lower(mensagem) = 'quero' OR lower(mensagem) = 'ok' OR 
+       lower(mensagem) = 'aceito' OR lower(mensagem) = '1'
+     )
+     ORDER BY data DESC LIMIT 100`,
+    function(err, rows) {
+      if (err) {
+        log('[ERRO] /leads SQLite: ' + err.message);
+        return res.json([]);
+      }
+      if (!rows || !rows.length) return res.json([]);
+
+      var leads = rows.map(function(row) {
+        var telLimpo = row.telefone.replace(/\D/g,'');
+        return {
+          data: row.data,
+          nome: 'Interesse via WhatsApp (' + telLimpo.slice(-4) + ')',
+          cpf: 'Consultar Ficha',
+          telefone: row.telefone,
+          margem: 350.00, // Preenche com uma margem fictícia padrão de interesse quente/morno
+          parcelas: 84,
+          banco: 'Campanha WhatsApp',
+          status: row.status === 'recebida' ? 'aguardando_digitacao' : row.status
+        };
+      });
+      res.json(leads);
+    }
+  );
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

@@ -1715,7 +1715,7 @@ var todosLeads = [];
 
 async function carregarLeads() {
   try {
-    var d = await fetch('http://https://bravo-nuvem.onrender.com:3000/leads').then(function(r) { return r.json(); });
+    var d = await fetch(WA_URL + '/leads').then(function(r) { return r.json(); });
     todosLeads = d;
     var total = d.length;
     var aguardando = d.filter(function(l) { return l.status === 'aguardando_digitacao'; }).length;
