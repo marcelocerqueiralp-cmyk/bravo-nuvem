@@ -645,3 +645,79 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
+# ═══════════════════════════════════════════════════════════════
+# FILA DE CONSULTA DE MARGEM (robô local lê daqui)
+# ═══════════════════════════════════════════════════════════════
+
+class FilaMargemRequest(BaseModel):
+    cpf: str
+
+@app.post("/margem/solicitar")
+def solicitar_margem(req: FilaMargemRequest):
+    """CRM chama para enfileirar consulta. Robô local pega e processa."""
+    cpf = limpar_cpf(req.cpf)
+    if not cpf:
+        raise HTTPException(400, "CPF inválido.")
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Verifica se já tem pendente para este CPF
+            cur.execute("SELECT id FROM consultas_margem_fila WHERE cpf=%s AND status IN ('pendente','processando')", (cpf,))
+            if cur.fetchone():
+                return {"ok": True, "mensagem": "Já na fila.", "cpf": cpf}
+            cur.execute("INSERT INTO consultas_margem_fila (cpf, status) VALUES (%s, 'pendente')", (cpf,))
+        conn.commit()
+    return {"ok": True, "mensagem": "CPF adicionado à fila.", "cpf": cpf}
+
+@app.get("/margem/resultado/{cpf}")
+def resultado_margem(cpf: str):
+    """CRM faz polling para ver se resultado chegou."""
+    cpf = limpar_cpf(cpf)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Verifica fila
+            cur.execute("SELECT status FROM consultas_margem_fila WHERE cpf=%s ORDER BY criado_em DESC LIMIT 1", (cpf,))
+            fila = cur.fetchone()
+            # Resultado mais recente
+            cur.execute("""
+                SELECT * FROM consultas_margem
+                WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1
+            """, (cpf,))
+            res = cur.fetchone()
+    status_fila = fila["status"] if fila else "nenhuma"
+    if res:
+        return {"ok": True, "status_fila": status_fila, "resultado": dict(res)}
+    return {"ok": False, "status_fila": status_fila, "resultado": None}
+
+@app.get("/margem/dashboard")
+def dashboard_margem():
+    """Estatísticas das consultas de margem."""
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) as n FROM consultas_margem")
+                total = cur.fetchone()["n"]
+                cur.execute("SELECT COUNT(*) as n FROM consultas_margem WHERE status='ok'")
+                ok = cur.fetchone()["n"]
+                cur.execute("SELECT COUNT(*) as n FROM consultas_margem_fila WHERE status='pendente'")
+                pendentes = cur.fetchone()["n"]
+                cur.execute("""
+                    SELECT cpf, servidor, secretaria, situacao,
+                           margem_real, margem_livre, convenio, status, consultado_em
+                    FROM consultas_margem ORDER BY consultado_em DESC LIMIT 20
+                """)
+                recentes = [dict(r) for r in cur.fetchall()]
+        return {"total": total, "sucesso": ok, "pendentes": pendentes,
+                "cpfs_consultados_hoje": ok, "ultimas_consultas": recentes}
+    except:
+        return {"total":0,"sucesso":0,"pendentes":0,"cpfs_consultados_hoje":0,"ultimas_consultas":[]}
+
+@app.get("/margem/ultima/{cpf}")
+def ultima_margem(cpf: str):
+    cpf = limpar_cpf(cpf)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM consultas_margem WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1", (cpf,))
+            row = cur.fetchone()
+    if not row: raise HTTPException(404, "Sem consulta.")
+    return dict(row)
