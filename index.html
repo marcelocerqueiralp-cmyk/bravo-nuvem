@@ -807,6 +807,20 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
       <button class="op-select-all-btn" onclick="opSelecionarTodos()">Selecionar todos</button>
     </div>
 
+    <!-- Card Total Margem Geral -->
+    <div style="background:linear-gradient(135deg,#6366f1,#818cf8);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(99,102,241,.25)">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">💰 Total Margem Disponível — Base Geral</div>
+        <div style="font-size:32px;font-weight:800;color:#fff" id="op-total-margem-geral">Calculando...</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.7);margin-top:4px" id="op-total-margem-sub">Carregando base...</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:rgba(255,255,255,.75);margin-bottom:6px">Clientes com margem</div>
+        <div style="font-size:24px;font-weight:700;color:#fff" id="op-total-clientes-margem">—</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px">de <span id="op-total-base">—</span> na base</div>
+      </div>
+    </div>
+
     <!-- Grid de cards dos bancos -->
     <div class="op-grid" id="op-cards-grid">
 
@@ -822,7 +836,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#009944">0,0312</div><div class="op-metric-sub">R$100→R$3.205</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-safra" onchange="opRecalcular('safra')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes com margem disponível</div><div class="op-metric-value" style="color:#2e7d32" id="op-val-safra">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Margem média</span><span id="op-pct-safra">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-safra" style="background:#009944;width:0%"></div></div></div>
@@ -844,7 +869,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#0077CC">0,0305</div><div class="op-metric-sub">R$100→R$3.278</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-digio" onchange="opRecalcular('digio')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes com margem disponível</div><div class="op-metric-value" style="color:#0077CC" id="op-val-digio">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Margem média</span><span id="op-pct-digio">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-digio" style="background:#0077CC;width:0%"></div></div></div>
@@ -866,7 +902,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#FF6B00">0,0298</div><div class="op-metric-sub">R$100→R$3.356</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-pan" onchange="opRecalcular('pan')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes para refinanciamento</div><div class="op-metric-value" style="color:#FF6B00" id="op-val-pan">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Progresso médio</span><span id="op-pct-pan">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-pan" style="background:#FF6B00;width:0%"></div></div></div>
@@ -888,7 +935,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#B40000">0,0318</div><div class="op-metric-sub">R$100→R$3.145</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-daycoval" onchange="opRecalcular('daycoval')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes com margem disponível</div><div class="op-metric-value" style="color:#B40000" id="op-val-daycoval">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Margem média</span><span id="op-pct-daycoval">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-daycoval" style="background:#B40000;width:0%"></div></div></div>
@@ -910,7 +968,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#FF8200">0,0302</div><div class="op-metric-sub">R$100→R$3.311</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-inter" onchange="opRecalcular('inter')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes com margem disponível</div><div class="op-metric-value" style="color:#FF8200" id="op-val-inter">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Margem média</span><span id="op-pct-inter">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-inter" style="background:#FF8200;width:0%"></div></div></div>
@@ -932,7 +1001,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#003FA3">0,0310</div><div class="op-metric-sub">R$100→R$3.226</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-industrial" onchange="opRecalcular('industrial')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes para refinanciamento</div><div class="op-metric-value" style="color:#003FA3" id="op-val-industrial">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Progresso médio</span><span id="op-pct-industrial">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-industrial" style="background:#003FA3;width:0%"></div></div></div>
@@ -954,7 +1034,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#005229">0,0295</div><div class="op-metric-sub">R$100→R$3.389</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">96x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-bb" onchange="opRecalcular('bb')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes com margem disponível</div><div class="op-metric-value" style="color:#005229" id="op-val-bb">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Margem média</span><span id="op-pct-bb">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-bb" style="background:#005229;width:0%"></div></div></div>
@@ -976,7 +1067,18 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         <div class="op-card-body">
           <div class="op-metrics">
             <div class="op-metric"><div class="op-metric-label">Coeficiente</div><div class="op-metric-value" style="color:#EC0000">0,0308</div><div class="op-metric-sub">R$100→R$3.247</div></div>
-            <div class="op-metric"><div class="op-metric-label">Prazo máx.</div><div class="op-metric-value">84x</div><div class="op-metric-sub">meses</div></div>
+            <div class="op-metric">
+              <div class="op-metric-label">Prazo</div>
+              <select class="op-prazo-sel" id="op-prazo-santander" onchange="opRecalcular('santander')" style="font-size:13px;font-weight:700;color:#111827;border:1.5px solid #e5e7eb;border-radius:6px;padding:3px 6px;background:#fff;cursor:pointer;width:100%">
+                <option value="48">48x</option>
+                <option value="60">60x</option>
+                <option value="72">72x</option>
+                <option value="84">84x</option>
+                <option value="96">96x</option>
+                <option value="120" selected>120x</option>
+              </select>
+              <div class="op-metric-sub">meses</div>
+            </div>
             <div class="op-metric op-metric-full"><div class="op-metric-label">Clientes para refinanciamento</div><div class="op-metric-value" style="color:#EC0000" id="op-val-santander">—</div><div class="op-metric-sub">Base atual</div></div>
           </div>
           <div class="op-bar"><div class="op-bar-label"><span>Progresso médio</span><span id="op-pct-santander">—</span></div><div class="op-bar-track"><div class="op-bar-fill" id="op-fill-santander" style="background:#EC0000;width:0%"></div></div></div>
@@ -1315,6 +1417,66 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
       if(env>=total)clearInterval(iv);
     },200);
   }
+
+var OP_COEFS = {"safra": {"48": 0.0412, "60": 0.0348, "72": 0.0312, "84": 0.0287, "96": 0.0271, "120": 0.0248}, "digio": {"48": 0.0405, "60": 0.0341, "72": 0.0305, "84": 0.0282, "96": 0.0266, "120": 0.0244}, "pan": {"48": 0.0398, "60": 0.0335, "72": 0.0298, "84": 0.0276, "96": 0.0261, "120": 0.0239}, "daycoval": {"48": 0.042, "60": 0.0355, "72": 0.0318, "84": 0.0293, "96": 0.0277, "120": 0.0254}, "inter": {"48": 0.0402, "60": 0.0338, "72": 0.0302, "84": 0.0279, "96": 0.0264, "120": 0.0241}, "industrial": {"48": 0.0415, "60": 0.035, "72": 0.031, "84": 0.0286, "96": 0.027, "120": 0.0247}, "bb": {"48": 0.0395, "60": 0.0331, "72": 0.0295, "84": 0.0273, "96": 0.0258, "120": 0.0236}, "santander": {"48": 0.0408, "60": 0.0344, "72": 0.0308, "84": 0.0284, "96": 0.0269, "120": 0.0246}};
+
+  function opRecalcular(banco) {
+    var sel = document.getElementById('op-prazo-' + banco);
+    if (!sel) return;
+    var prazo = sel.value;
+    var coef = OP_COEFS[banco] && OP_COEFS[banco][prazo] ? OP_COEFS[banco][prazo] : 0.03;
+    // Atualizar coeficiente exibido
+    var coefEl = document.querySelector('#opcard-' + banco + ' .op-metric-value[style*="color"]');
+    if (coefEl) coefEl.textContent = coef.toFixed(4).replace('.', ',');
+    // Recalcular valor estimado com base na margem média da base
+    var margemMedia = 0;
+    if (todosServidores && todosServidores.length) {
+      var ativos = todosServidores.filter(function(r) {
+        var m = parseFloat(r.MARGEM_DISPONIVEL||0);
+        var s = (r.SITUACAO||'').toUpperCase();
+        return m > 0 && s.indexOf('ATIVO') >= 0 && s.indexOf('OBIT') < 0;
+      });
+      if (ativos.length) {
+        var soma = ativos.reduce(function(acc, r) { return acc + parseFloat(r.MARGEM_DISPONIVEL||0); }, 0);
+        margemMedia = soma / ativos.length;
+      }
+    }
+    if (!margemMedia) margemMedia = 500; // fallback
+    var valorEst = margemMedia / coef;
+    var valEl = document.getElementById('op-val-' + banco);
+    // Mostrar valor estimado médio por cliente
+    var subEl = valEl ? valEl.nextElementSibling : null;
+    if (subEl) subEl.textContent = 'Valor médio estimado: R$ ' + brl(valorEst) + ' (coef. ' + coef.toFixed(4).replace('.',',') + ')';
+  }
+
+  function opCalcularMargemGeral() {
+    if (!todosServidores || !todosServidores.length) return;
+    var totalMargem = 0, clientesComMargem = 0;
+    todosServidores.forEach(function(r) {
+      var m = parseFloat(r.MARGEM_DISPONIVEL||0);
+      var s = (r.SITUACAO||'').toUpperCase();
+      var isAtivo = s.indexOf('ATIVO') >= 0 && s.indexOf('OBIT') < 0 && s.indexOf('SUSPEN') < 0;
+      if (isAtivo && m > 0) {
+        totalMargem += m;
+        clientesComMargem++;
+      }
+    });
+    var el = document.getElementById('op-total-margem-geral');
+    var subEl = document.getElementById('op-total-margem-sub');
+    var cliEl = document.getElementById('op-total-clientes-margem');
+    var baseEl = document.getElementById('op-total-base');
+    if (el) el.textContent = 'R$ ' + brl(totalMargem);
+    if (subEl) subEl.textContent = 'Média por cliente: R$ ' + brl(clientesComMargem > 0 ? totalMargem / clientesComMargem : 0);
+    if (cliEl) cliEl.textContent = clientesComMargem.toLocaleString('pt-BR');
+    if (baseEl) baseEl.textContent = todosServidores.length.toLocaleString('pt-BR');
+  }
+
+  // Sobrescrever opAtualizarCards para incluir margem geral
+  var _origOpAtualizar = opAtualizarCards;
+  opAtualizarCards = function() {
+    _origOpAtualizar();
+    opCalcularMargemGeral();
+  };
 
   // Sobrescrever analisarOportunidades para também atualizar os cards
   var _origAnalisar = typeof analisarOportunidades === 'function' ? analisarOportunidades : null;
