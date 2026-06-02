@@ -3,12 +3,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
-import asyncio, uuid, logging, csv, io, json, re, os, shutil, glob
-from datetime import datetime
+import asyncio, uuid, logging, csv, io, json, re, os, shutil, glob, secrets, hashlib
+from datetime import datetime, timedelta
 import threading, time
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from consiglog_bot import consultar_todos_convenios
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("consigplat")
@@ -16,63 +15,74 @@ log = logging.getLogger("consigplat")
 app = FastAPI(title="ConsigPlat API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-from whatsapp_routes import router_wa
-app.include_router(router_wa)
-
 DATABASE_URL = os.environ.get("DATABASE_URL")
-PASTA_IN  = "/tmp/importacao"
-PASTA_OK  = "/tmp/importacao/ok"
-PASTA_ERR = "/tmp/importacao/erro"
+LICENCA_MASTER_KEY = os.environ.get("LICENCA_MASTER_KEY", "BravoConsig@Master2026")
 
+PASTA_IN = "/tmp/importacao"
+PASTA_OK = "/tmp/importacao/ok"
+PASTA_ERR = "/tmp/importacao/erro"
 for p in [PASTA_IN, PASTA_OK, PASTA_ERR]:
     os.makedirs(p, exist_ok=True)
 
 def get_db():
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-    return conn
+    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
 
 def init_db():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-            CREATE TABLE IF NOT EXISTS clientes (
-                id SERIAL PRIMARY KEY,
-                cpf TEXT UNIQUE NOT NULL,
-                nome TEXT, nasc TEXT, nb TEXT, especie TEXT, situacao TEXT,
-                criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
-            CREATE TABLE IF NOT EXISTS consultas (
-                id TEXT PRIMARY KEY, cpf TEXT NOT NULL, fonte TEXT,
-                banco TEXT, competencia TEXT,
-                margem_livre REAL, margem_util REAL, margem_total REAL,
-                status TEXT DEFAULT 'pendente', erro TEXT, operador TEXT,
-                criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
-            CREATE TABLE IF NOT EXISTS webhook_payloads (
-                id SERIAL PRIMARY KEY,
-                cpf TEXT, origem TEXT, payload TEXT,
-                criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
-            CREATE TABLE IF NOT EXISTS base_servidores (
-                id SERIAL PRIMARY KEY,
-                cpf TEXT UNIQUE NOT NULL,
-                dados TEXT NOT NULL,
-                importado_em TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
-            CREATE TABLE IF NOT EXISTS colunas_cadastradas (
-                nome TEXT PRIMARY KEY,
-                label TEXT,
-                tipo TEXT DEFAULT 'texto',
-                ordem INTEGER DEFAULT 99,
-                criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
-            CREATE TABLE IF NOT EXISTS historico_importacoes (
-                id SERIAL PRIMARY KEY,
-                arquivo TEXT, total INTEGER, inseridos INTEGER,
-                atualizados INTEGER, erros INTEGER, novas_colunas TEXT,
-                status TEXT,
-                criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-            );
+                CREATE TABLE IF NOT EXISTS clientes (
+                    id SERIAL PRIMARY KEY,
+                    cpf TEXT UNIQUE NOT NULL,
+                    nome TEXT, nasc TEXT, nb TEXT, especie TEXT, situacao TEXT,
+                    criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS consultas (
+                    id TEXT PRIMARY KEY, cpf TEXT NOT NULL, fonte TEXT,
+                    banco TEXT, competencia TEXT,
+                    margem_livre REAL, margem_util REAL, margem_total REAL,
+                    status TEXT DEFAULT 'pendente', erro TEXT, operador TEXT,
+                    criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS webhook_payloads (
+                    id SERIAL PRIMARY KEY,
+                    cpf TEXT, origem TEXT, payload TEXT,
+                    criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS base_servidores (
+                    id SERIAL PRIMARY KEY,
+                    cpf TEXT UNIQUE NOT NULL,
+                    dados TEXT NOT NULL,
+                    importado_em TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS colunas_cadastradas (
+                    nome TEXT PRIMARY KEY,
+                    label TEXT,
+                    tipo TEXT DEFAULT 'texto',
+                    ordem INTEGER DEFAULT 99,
+                    criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS historico_importacoes (
+                    id SERIAL PRIMARY KEY,
+                    arquivo TEXT, total INTEGER, inseridos INTEGER,
+                    atualizados INTEGER, erros INTEGER, novas_colunas TEXT,
+                    status TEXT,
+                    criado TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE TABLE IF NOT EXISTS licencas (
+                    id SERIAL PRIMARY KEY,
+                    chave TEXT UNIQUE NOT NULL,
+                    cliente_nome TEXT NOT NULL,
+                    cliente_fone TEXT,
+                    dias INTEGER DEFAULT 30,
+                    ativada_em TEXT,
+                    expira_em TEXT,
+                    hardware_id TEXT,
+                    status TEXT DEFAULT 'pendente',
+                    observacao TEXT,
+                    criado_em TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS'),
+                    ultimo_acesso TEXT
+                );
             """)
             colunas_fixas = [
                 ("CPF","CPF","cpf",1),("SERVIDOR","Nome","texto",2),
@@ -98,6 +108,7 @@ def init_db():
     log.info("Banco iniciado.")
 
 init_db()
+
 _job_status = {}
 
 @app.on_event("startup")
@@ -109,8 +120,7 @@ def limpar_cpf(raw: str) -> str:
     if not raw: return ""
     s = str(raw).strip()
     if re.search(r'[eE]', s):
-        try:
-            s = str(int(round(float(s.replace(",",".")))))
+        try: s = str(int(round(float(s.replace(",",".")))))
         except: return ""
     digits = re.sub(r'\D', '', s)
     if len(digits) > 11: digits = digits[-11:]
@@ -145,7 +155,7 @@ def tipo_col(nome: str) -> str:
     if "QTD" in n or "QUANT" in n: return "numero"
     return "texto"
 
-_oportunidades_cache = {"quente": 0, "morno": 0, "frio": 0, "refin": 0, "livre": 0, "total": 0, "atualizado": None}
+_oportunidades_cache = {"quente":0,"morno":0,"frio":0,"refin":0,"livre":0,"total":0,"atualizado":None}
 _alertas_pendentes = []
 
 def analisar_oportunidades():
@@ -155,28 +165,28 @@ def analisar_oportunidades():
             with conn.cursor() as cur:
                 cur.execute("SELECT dados FROM base_servidores WHERE cpf != '__contas__'")
                 rows = cur.fetchall()
-        quente = morno = frio = sem = refin = livre = 0
-        for row in rows:
-            try:
-                r = json.loads(row["dados"])
-                marg = limpar_valor(r.get("MARGEM_DISPONIVEL", 0))
-                sit = (r.get("SITUACAO") or "").upper()
-                qtd = int(r.get("QTD_DESCONTO") or 0)
-                is_ativo = "ATIVO" in sit and "OBIT" not in sit and "SUSPEN" not in sit and "DEMIT" not in sit
-                if not is_ativo: sem += 1; continue
-                if marg >= 300: quente += 1
-                elif marg >= 50: morno += 1
-                elif marg > 0: frio += 1
-                else: sem += 1
-                if qtd > 0: refin += 1
-                if qtd == 0 and marg > 0: livre += 1
-            except: pass
-        _oportunidades_cache = {
-            "quente": quente, "morno": morno, "frio": frio,
-            "sem": sem, "refin": refin, "livre": livre,
-            "total": quente + morno + frio,
-            "atualizado": datetime.now().strftime("%d/%m/%Y %H:%M")
-        }
+                quente = morno = frio = sem = refin = livre = 0
+                for row in rows:
+                    try:
+                        r = json.loads(row["dados"])
+                        marg = limpar_valor(r.get("MARGEM_DISPONIVEL", 0))
+                        sit = (r.get("SITUACAO") or "").upper()
+                        qtd = int(r.get("QTD_DESCONTO") or 0)
+                        is_ativo = "ATIVO" in sit and "OBIT" not in sit and "SUSPEN" not in sit and "DEMIT" not in sit
+                        if not is_ativo: sem += 1; continue
+                        if marg >= 300: quente += 1
+                        elif marg >= 50: morno += 1
+                        elif marg > 0: frio += 1
+                        else: sem += 1
+                        if qtd > 0: refin += 1
+                        if qtd == 0 and marg > 0: livre += 1
+                    except: pass
+                _oportunidades_cache = {
+                    "quente":quente,"morno":morno,"frio":frio,
+                    "sem":sem,"refin":refin,"livre":livre,
+                    "total":quente+morno+frio,
+                    "atualizado":datetime.now().strftime("%d/%m/%Y %H:%M")
+                }
     except Exception as e:
         log.error(f"Erro ao analisar oportunidades: {e}")
 
@@ -203,7 +213,7 @@ def processar_texto(text: str, nome_arquivo: str = "upload") -> dict:
                 if cu not in existentes:
                     ordem += 1
                     cur.execute("INSERT INTO colunas_cadastradas (nome,label,tipo,ordem) VALUES (%s,%s,%s,%s) ON CONFLICT (nome) DO NOTHING",
-                                (cu, col.strip().title().replace("_"," "), tipo_col(cu), ordem))
+                        (cu, col.strip().title().replace("_"," "), tipo_col(cu), ordem))
                     novas_colunas.append(col.strip())
             for row in rows:
                 try:
@@ -226,7 +236,7 @@ def processar_texto(text: str, nome_arquivo: str = "upload") -> dict:
         conn.commit()
     msg = f"{inseridos} inseridos, {atualizados} atualizados."
     if erros: msg += f" {erros} ignorados."
-    return {"ok":True, "inseridos":inseridos, "atualizados":atualizados, "erros":erros, "novas_colunas":novas_colunas, "mensagem":msg}
+    return {"ok":True,"inseridos":inseridos,"atualizados":atualizados,"erros":erros,"novas_colunas":novas_colunas,"mensagem":msg}
 
 class ConsultaRequest(BaseModel):
     cpf: str
@@ -243,12 +253,11 @@ def carregar_contas():
             with conn.cursor() as cur:
                 cur.execute("SELECT dados FROM base_servidores WHERE cpf='__contas__'")
                 row = cur.fetchone()
-                if row:
-                    return json.loads(row["dados"])
+                if row: return json.loads(row["dados"])
     except: pass
     return [
-        {"id": 1, "nome": "BA-SAEB", "convenio": "saeb", "usuario": "", "senha": "", "ativo": True},
-        {"id": 2, "nome": "BA-SUPREV", "convenio": "suprev", "usuario": "", "senha": "", "ativo": True},
+        {"id":1,"nome":"BA-SAEB","convenio":"saeb","usuario":"","senha":"","ativo":True},
+        {"id":2,"nome":"BA-SUPREV","convenio":"suprev","usuario":"","senha":"","ativo":True},
     ]
 
 def salvar_contas(contas):
@@ -264,124 +273,39 @@ def salvar_contas(contas):
 
 async def rodar_bots_paralelo(job_id, cpf, operador):
     _job_status[job_id] = {"status":"rodando","logs":[],"dados":None}
-    def push(m):
-        _job_status[job_id]["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {m}")
-    
+    def push(m): _job_status[job_id]["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {m}")
     push("Consultando CPF: " + cpf)
-    await asyncio.sleep(0.1)
-    
-    # Carrega contas salvas nas configurações
-    contas = carregar_contas()
-    contas_ativas = [c for c in contas if c.get("ativo", True) and c.get("usuario") and c.get("senha")]
-    
-    sucesso_real = False
-    
-    if contas_ativas:
-        push(f"Disparando robô real ConsigLog para {len(contas_ativas)} convênio(s) ativo(s)...")
-        try:
-            # Chama o Playwright real e passa a função push para exibir o log em tempo real na tela
-            res = await consultar_todos_convenios(cpf, contas_ativas, push_log=push)
-            consolidado = res.get("consolidado", {})
-            resultados = res.get("resultados", [])
-            
-            # Verifica se pelo menos uma conta retornou status "ok"
-            ok_results = [r for r in resultados if r.get("status") == "ok"]
-            
-            if ok_results and consolidado.get("servidor"):
-                sucesso_real = True
-                livre = consolidado.get("margem_livre", 0.0)
-                util = consolidado.get("margem_util", 0.0)
-                total = consolidado.get("margem_total", 0.0)
-                
-                push(f"Robô concluído com sucesso!")
-                push(f"Servidor: {consolidado.get('servidor')}")
-                push(f"Margem disponível: R$ {livre:.2f}")
-                
-                # Monta os dados para salvar e retornar
-                dados = {
-                    "banco": consolidado.get("banco", "ConsigLog Real"),
-                    "competencia": consolidado.get("competencia", datetime.now().strftime("%m/%Y")),
-                    "margem_livre": livre,
-                    "margem_util": util,
-                    "margem_total": total
-                }
-                
-                # 1. Salva a consulta no histórico de consultas
-                with get_db() as conn:
-                    with conn.cursor() as cur:
-                        cur.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                            (job_id, cpf, "robo_playwright", dados["banco"], dados["competencia"], livre, util, total, "ok", operador))
-                        
-                        # 2. Atualiza a tabela clientes
-                        cur.execute("SELECT id FROM clientes WHERE cpf=%s", (cpf,))
-                        if not cur.fetchone():
-                            cur.execute("INSERT INTO clientes (cpf,nome,nasc,nb,especie,situacao) VALUES (%s,%s,%s,%s,%s,%s)",
-                                (cpf, consolidado.get("servidor"), "", "", "", consolidado.get("situacao")))
-                        else:
-                            cur.execute("UPDATE clientes SET nome=%s, situacao=%s WHERE cpf=%s",
-                                (consolidado.get("servidor"), consolidado.get("situacao"), cpf))
-                        
-                        # 3. Enriquece/salva na base_servidores para atualizar a lista do CRM
-                        cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
-                        row_serv = cur.fetchone()
-                        dados_serv = json.loads(row_serv["dados"]) if row_serv else {}
-                        
-                        # Atualiza os campos raspados no JSON mantendo os outros importados do CSV intactos
-                        dados_serv.update({
-                            "CPF": cpf,
-                            "SERVIDOR": consolidado.get("servidor"),
-                            "SECRETARIA": consolidado.get("secretaria"),
-                            "MATRICULA": consolidado.get("matricula"),
-                            "SITUACAO": consolidado.get("situacao"),
-                            "MARGEM_DISPONIVEL": livre,
-                            "MARGEM_TOTAL": total,
-                            "VALOR_DESCONTO": util
-                        })
-                        jstr = json.dumps(dados_serv, ensure_ascii=False)
-                        if row_serv:
-                            cur.execute("UPDATE base_servidores SET dados=%s, importado_em=to_char(now(),'DD/MM/YYYY HH24:MI:SS') WHERE cpf=%s", (jstr, cpf))
-                        else:
-                            cur.execute("INSERT INTO base_servidores (cpf,dados) VALUES (%s,%s)", (cpf, jstr))
-                        
-                        conn.commit()
-                
+    await asyncio.sleep(0.2)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
+            row = cur.fetchone()
+            if row:
+                base = json.loads(row["dados"])
+                livre = limpar_valor(base.get("MARGEM_DISPONIVEL",0))
+                util  = limpar_valor(base.get("VALOR_DESCONTO",0))
+                total = limpar_valor(base.get("MARGEM_TOTAL",0))
+                push(f"Encontrado: {base.get('SERVIDOR','—')}")
+                push(f"Margem disponivel: R$ {livre:.2f}")
+                dados = {"banco":"ConsigLog","competencia":datetime.now().strftime("%m/%Y"),
+                         "margem_livre":livre,"margem_util":util,"margem_total":total}
+                with get_db() as conn2:
+                    with conn2.cursor() as cur2:
+                        cur2.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET status=%s",
+                            (job_id,cpf,"base_importada",dados["banco"],dados["competencia"],livre,util,total,"ok",operador,"ok"))
+                    conn2.commit()
                 _job_status[job_id].update({"status":"concluido","dados":dados})
-                push("Processo finalizado!")
+                push("Concluido!")
             else:
-                push("Nenhum convênio respondeu com sucesso (credenciais incorretas ou portal indisponível).")
-        except Exception as e:
-            push(f"Erro ao rodar automação Playwright: {e}")
-            
-    if not sucesso_real:
-        push("Recorrendo à busca local em cache (fallback)...")
-        # Fallback para os dados importados locais
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT dados FROM base_servidores WHERE cpf=%s", (cpf,))
-                row = cur.fetchone()
-        if row:
-            base = json.loads(row["dados"])
-            livre = limpar_valor(base.get("MARGEM_DISPONIVEL", 0))
-            util = limpar_valor(base.get("VALOR_DESCONTO", 0))
-            total = limpar_valor(base.get("MARGEM_TOTAL", 0))
-            push(f"Encontrado em cache local: {base.get('SERVIDOR','—')}")
-            push(f"Margem disponível (importada): R$ {livre:.2f}")
-            dados = {"banco":"Cache Importado","competencia":datetime.now().strftime("%m/%Y"),
-                     "margem_livre":livre,"margem_util":util,"margem_total":total}
-            with get_db() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("INSERT INTO consultas (id,cpf,fonte,banco,competencia,margem_livre,margem_util,margem_total,status,operador) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET status=%s",
-                        (job_id,cpf,"cache_local",dados["banco"],dados["competencia"],livre,util,total,"ok",operador,"ok"))
-                conn.commit()
-            _job_status[job_id].update({"status":"concluido","dados":dados})
-            push("Concluído (via base importada)!")
-        else:
-            push("CPF não localizado na base local importada.")
-            _job_status[job_id].update({"status":"concluido","dados":{}})
+                push("CPF nao encontrado.")
+                _job_status[job_id].update({"status":"concluido","dados":{}})
+
+# ═══════════════════════════════════════════════════════════════
+# ENDPOINTS EXISTENTES
+# ═══════════════════════════════════════════════════════════════
 
 @app.get("/")
-def root():
-    return {"app":"ConsigPlat","status":"online"}
+def root(): return {"app":"ConsigPlat","status":"online"}
 
 @app.post("/importar-csv")
 async def importar_csv(file: UploadFile = File(...)):
@@ -398,16 +322,14 @@ def historico_importacoes():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM historico_importacoes ORDER BY criado DESC LIMIT 50")
-            rows = cur.fetchall()
-    return [dict(r) for r in rows]
+            return [dict(r) for r in cur.fetchall()]
 
 @app.get("/colunas")
 def listar_colunas():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM colunas_cadastradas ORDER BY ordem")
-            rows = cur.fetchall()
-    return [dict(r) for r in rows]
+            return [dict(r) for r in cur.fetchall()]
 
 @app.get("/base/todos")
 def base_todos():
@@ -480,32 +402,28 @@ def buscar_cliente(cpf: str):
     if base:
         for c in ["MARGEM_DISPONIVEL","MARGEM_REAL","MARGEM_TOTAL","MARG_DISP_TABELA","VALOR_DESCONTO","DESCONTOS","VD","VD_DESCONTO"]:
             if c in base: base[c] = limpar_valor(base[c])
-    return {"cliente":dict(cliente) if cliente else None, "historico":[dict(r) for r in historico], "base":base}
+    return {"cliente":dict(cliente) if cliente else None,"historico":[dict(r) for r in historico],"base":base}
 
 @app.get("/contas")
-def listar_contas():
-    return carregar_contas()
+def listar_contas(): return carregar_contas()
 
 @app.post("/contas")
 def salvar_contas_endpoint(contas: list):
     salvar_contas(contas)
-    return {"ok": True, "mensagem": f"{len(contas)} contas salvas."}
+    return {"ok":True,"mensagem":f"{len(contas)} contas salvas."}
 
 @app.put("/contas/{conta_id}")
 def atualizar_conta(conta_id: int, dados: dict):
     contas = carregar_contas()
     for c in contas:
-        if c["id"] == conta_id:
-            c.update(dados)
-            break
+        if c["id"] == conta_id: c.update(dados); break
     else:
-        contas.append({**dados, "id": conta_id})
+        contas.append({**dados,"id":conta_id})
     salvar_contas(contas)
-    return {"ok": True}
+    return {"ok":True}
 
 @app.get("/oportunidades")
-def get_oportunidades():
-    return _oportunidades_cache
+def get_oportunidades(): return _oportunidades_cache
 
 @app.get("/oportunidades/alertas")
 def get_alertas():
@@ -517,7 +435,7 @@ def get_alertas():
 @app.post("/oportunidades/analisar")
 def forcar_analise():
     analisar_oportunidades()
-    return {"ok": True, "dados": _oportunidades_cache}
+    return {"ok":True,"dados":_oportunidades_cache}
 
 @app.get("/oportunidades/lista/{tipo}")
 def listar_oportunidade(tipo: str):
@@ -529,20 +447,20 @@ def listar_oportunidade(tipo: str):
     for row in rows:
         try:
             r = json.loads(row["dados"])
-            marg = limpar_valor(r.get("MARGEM_DISPONIVEL", 0))
-            sit = (r.get("SITUACAO") or "").upper()
-            qtd = int(r.get("QTD_DESCONTO") or 0)
+            marg = limpar_valor(r.get("MARGEM_DISPONIVEL",0))
+            sit  = (r.get("SITUACAO") or "").upper()
+            qtd  = int(r.get("QTD_DESCONTO") or 0)
             is_ativo = "ATIVO" in sit and "OBIT" not in sit and "SUSPEN" not in sit
             for c in ["MARGEM_DISPONIVEL","MARGEM_REAL","MARGEM_TOTAL","VALOR_DESCONTO"]:
                 if c in r: r[c] = limpar_valor(r[c])
-            if tipo == "quente" and is_ativo and marg >= 300: resultado.append(r)
-            elif tipo == "morno" and is_ativo and marg >= 50 and marg < 300: resultado.append(r)
-            elif tipo == "frio" and is_ativo and marg > 0 and marg < 50: resultado.append(r)
-            elif tipo == "sem" and (not is_ativo or marg <= 0): resultado.append(r)
-            elif tipo == "refin" and is_ativo and qtd > 0: resultado.append(r)
-            elif tipo == "livre" and is_ativo and qtd == 0 and marg > 0: resultado.append(r)
+            if tipo=="quente" and is_ativo and marg>=300: resultado.append(r)
+            elif tipo=="morno" and is_ativo and 50<=marg<300: resultado.append(r)
+            elif tipo=="frio" and is_ativo and 0<marg<50: resultado.append(r)
+            elif tipo=="sem" and (not is_ativo or marg<=0): resultado.append(r)
+            elif tipo=="refin" and is_ativo and qtd>0: resultado.append(r)
+            elif tipo=="livre" and is_ativo and qtd==0 and marg>0: resultado.append(r)
         except: pass
-    resultado.sort(key=lambda x: float(x.get("MARGEM_DISPONIVEL", 0)), reverse=True)
+    resultado.sort(key=lambda x: float(x.get("MARGEM_DISPONIVEL",0)), reverse=True)
     return resultado
 
 @app.post("/webhook")
@@ -551,7 +469,7 @@ def receber_webhook(payload: WebhookPayload):
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("INSERT INTO webhook_payloads (cpf,origem,payload) VALUES (%s,%s,%s)",
-                        (cpf,payload.origem,json.dumps(payload.dados)))
+                (cpf,payload.origem,json.dumps(payload.dados)))
         conn.commit()
     return {"ok":True}
 
@@ -560,16 +478,160 @@ def historico_webhook_todos():
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT * FROM webhook_payloads ORDER BY criado DESC LIMIT 50")
-            rows = cur.fetchall()
-    return [dict(r) for r in rows]
+            return [dict(r) for r in cur.fetchall()]
 
 @app.get("/agendador/status")
-def agendador_status():
-    return {"ok": True, "mensagem": "Use importacao via CSV."}
+def agendador_status(): return {"ok":True,"mensagem":"Use importacao via CSV."}
 
 @app.post("/agendador/forcar")
-def forcar_importacao():
-    return {"ok": True, "mensagem": "Use importacao via CSV."}
+def forcar_importacao(): return {"ok":True,"mensagem":"Use importacao via CSV."}
+
+# ═══════════════════════════════════════════════════════════════
+# SISTEMA DE LICENÇAS
+# ═══════════════════════════════════════════════════════════════
+
+class GerarLicencaRequest(BaseModel):
+    cliente_nome : str
+    cliente_fone : Optional[str] = ""
+    dias         : int = 30
+    observacao   : Optional[str] = ""
+    master_key   : str
+
+class ValidarLicencaRequest(BaseModel):
+    chave       : str
+    hardware_id : str
+
+class RenovarLicencaRequest(BaseModel):
+    chave      : str
+    dias_extra : int = 30
+    master_key : str
+
+def verificar_master(key: str):
+    if key != LICENCA_MASTER_KEY:
+        raise HTTPException(403, "Chave mestra invalida.")
+
+def gerar_chave_unica() -> str:
+    parte = lambda: secrets.token_hex(2).upper()
+    return f"BRAVO-{parte()}-{parte()}-{parte()}"
+
+@app.post("/licenca/gerar")
+def gerar_licenca(req: GerarLicencaRequest):
+    verificar_master(req.master_key)
+    chave = gerar_chave_unica()
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO licencas (chave,cliente_nome,cliente_fone,dias,status,observacao)
+                VALUES (%s,%s,%s,%s,'pendente',%s)
+            """, (chave, req.cliente_nome, req.cliente_fone, req.dias, req.observacao))
+        conn.commit()
+    return {
+        "ok"      : True,
+        "chave"   : chave,
+        "cliente" : req.cliente_nome,
+        "dias"    : req.dias,
+        "mensagem": f"Chave gerada! Envie ao cliente: {chave}",
+    }
+
+@app.post("/licenca/validar")
+def validar_licenca(req: ValidarLicencaRequest):
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM licencas WHERE chave=%s", (req.chave.strip().upper(),))
+            lic = cur.fetchone()
+    if not lic:
+        return {"valida":False,"motivo":"Chave nao encontrada."}
+    if lic["status"] == "bloqueada":
+        return {"valida":False,"motivo":"Licenca bloqueada. Contate o suporte."}
+    # Primeira ativação
+    if lic["status"] == "pendente":
+        agora  = datetime.now()
+        expira = agora + timedelta(days=lic["dias"])
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE licencas SET status='ativa', hardware_id=%s,
+                        ativada_em=%s, expira_em=%s, ultimo_acesso=%s
+                    WHERE chave=%s
+                """, (req.hardware_id,
+                      agora.strftime("%d/%m/%Y %H:%M:%S"),
+                      expira.strftime("%d/%m/%Y %H:%M:%S"),
+                      agora.strftime("%d/%m/%Y %H:%M:%S"),
+                      req.chave.strip().upper()))
+            conn.commit()
+        return {"valida":True,"motivo":"Licenca ativada!","cliente":lic["cliente_nome"],
+                "dias_restantes":lic["dias"],"expira_em":expira.strftime("%d/%m/%Y"),"primeira_vez":True}
+    # Verifica hardware
+    if lic["hardware_id"] and lic["hardware_id"] != req.hardware_id:
+        return {"valida":False,"motivo":"Licenca vinculada a outro computador.\nContate o suporte para transferir."}
+    # Verifica validade
+    try:
+        expira_dt = datetime.strptime(lic["expira_em"], "%d/%m/%Y %H:%M:%S")
+    except:
+        expira_dt = datetime.strptime(lic["expira_em"][:10], "%d/%m/%Y")
+    agora = datetime.now()
+    if agora > expira_dt:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE licencas SET status='vencida' WHERE chave=%s", (req.chave,))
+            conn.commit()
+        dias_v = (agora - expira_dt).days
+        return {"valida":False,"motivo":f"Licenca vencida ha {dias_v} dia(s).\nContate o suporte para renovar.","vencida":True}
+    # OK
+    dias_rest = (expira_dt - agora).days
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE licencas SET ultimo_acesso=%s WHERE chave=%s",
+                (agora.strftime("%d/%m/%Y %H:%M:%S"), req.chave))
+        conn.commit()
+    aviso = f"Sua licenca vence em {dias_rest} dia(s)! Renove com o suporte." if dias_rest <= 5 else ""
+    return {"valida":True,"motivo":"Licenca valida.","cliente":lic["cliente_nome"],
+            "dias_restantes":dias_rest,"expira_em":expira_dt.strftime("%d/%m/%Y"),"aviso":aviso,"primeira_vez":False}
+
+@app.post("/licenca/renovar")
+def renovar_licenca(req: RenovarLicencaRequest):
+    verificar_master(req.master_key)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM licencas WHERE chave=%s", (req.chave,))
+            lic = cur.fetchone()
+    if not lic: raise HTTPException(404, "Chave nao encontrada.")
+    agora = datetime.now()
+    try:
+        base = datetime.strptime(lic["expira_em"], "%d/%m/%Y %H:%M:%S")
+        if base < agora: base = agora
+    except:
+        base = agora
+    nova_expira = base + timedelta(days=req.dias_extra)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE licencas SET expira_em=%s, status='ativa', dias=dias+%s WHERE chave=%s",
+                (nova_expira.strftime("%d/%m/%Y %H:%M:%S"), req.dias_extra, req.chave))
+        conn.commit()
+    return {"ok":True,"chave":req.chave,"cliente":lic["cliente_nome"],
+            "dias_extra":req.dias_extra,"nova_expira":nova_expira.strftime("%d/%m/%Y"),
+            "mensagem":f"+{req.dias_extra} dias. Expira em {nova_expira.strftime('%d/%m/%Y')}"}
+
+@app.get("/licenca/listar")
+def listar_licencas(master_key: str):
+    verificar_master(master_key)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT chave,cliente_nome,cliente_fone,dias,ativada_em,expira_em,status,ultimo_acesso,observacao FROM licencas ORDER BY criado_em DESC")
+            return [dict(r) for r in cur.fetchall()]
+
+@app.post("/licenca/bloquear")
+def bloquear_licenca(chave: str, master_key: str):
+    verificar_master(master_key)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE licencas SET status='bloqueada' WHERE chave=%s", (chave,))
+        conn.commit()
+    return {"ok":True,"mensagem":f"Licenca {chave} bloqueada."}
+
+# ═══════════════════════════════════════════════════════════════
+# FRONTEND
+# ═══════════════════════════════════════════════════════════════
 
 @app.get("/app", response_class=HTMLResponse)
 def frontend():
