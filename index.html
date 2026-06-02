@@ -146,6 +146,7 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
     <div class="nav-item" id="nav-leads" onclick="irPara('leads',this)">Leads</div>
     <div class="nav-sec">Robos</div>
     <div class="nav-item" id="nav-robos" onclick="irPara('robos',this)"><div class="dot on"></div>ConsigLog Bot</div>
+        <div class="nav-item" id="nav-margem" onclick="irPara('margem',this)"><div class="dot on"></div>Margem em Lote</div>
     <div class="nav-item" onclick="irPara('robos',this)"><div class="dot wrn"></div>INSS Scraper</div>
     <div class="nav-item" onclick="irPara('robos',this)"><div class="dot off"></div>Webhook API</div>
     <div class="nav-sec">Sistema</div>
@@ -209,6 +210,7 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
           <div class="row"><span class="key">Valor Desconto</span><span class="v warn" id="m-desc">—</span></div>
           <div class="row"><span class="key">Qtd. Descontos</span><span class="v" id="m-qtd">—</span></div>
           <div class="row"><span class="key">Pct. Margem</span><span class="v" id="m-pct">—</span></div>
+          <button id="btn-consultar-margem" class="btn-sm" style="border-color:#1a7a1a;color:#1a7a1a;font-weight:600;margin-top:12px;width:100%" onclick="consultarMargemDashboard()">🔄 Consultar Margem Agora</button>
           <div class="bar-labels"><span>0%</span><span id="bar-pct">—</span><span>100%</span></div>
           <div class="bar-track"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
         </div>
@@ -709,6 +711,70 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
         </table>
       </div>
       <div style="padding:10px 16px;border-top:1px solid #e8e8e8;font-size:11px;color:#888" id="op-paginacao"></div>
+    </div>
+  </div>
+
+
+  <!-- MARGEM EM LOTE -->
+  <div class="page" id="page-margem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:14px;font-weight:600">Consulta de Margem — Tempo Real</div>
+        <div style="font-size:11px;color:#888;margin-top:2px">O robô local consulta o ConsigLog e envia os resultados para cá</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="mg-status-robo" style="font-size:11px;padding:4px 10px;border-radius:4px;background:#f5f5f5;border:1px solid #e0e0e0">🔴 Robô desconectado</span>
+        <button class="btn-sm" onclick="verificarRoboLocal()">↻ Verificar</button>
+        <button class="btn-green" onclick="exportarMargem()">⬇ Exportar CSV</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">Total</div><div style="font-size:20px;font-weight:700;color:#1a1a1a" id="mg-total">0</div></div>
+      <div style="background:#fff;border:1px solid #1a7a1a;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">✅ OK</div><div style="font-size:20px;font-weight:700;color:#1a7a1a" id="mg-ok">0</div></div>
+      <div style="background:#fff;border:1px solid #c17f00;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">⚠ Suspensos</div><div style="font-size:20px;font-weight:700;color:#c17f00" id="mg-sus">0</div></div>
+      <div style="background:#fff;border:1px solid #888;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">❌ Não Enc.</div><div style="font-size:20px;font-weight:700;color:#888" id="mg-nenc">0</div></div>
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">Hoje</div><div style="font-size:20px;font-weight:700;color:#5a3ea0" id="mg-hoje">0</div></div>
+      <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)"><div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:3px">Em andamento</div><div style="font-size:20px;font-weight:700;color:#1a1a1a" id="mg-andamento">0</div></div>
+    </div>
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:14px 16px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px">Consulta Individual em Tempo Real</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="mg-cpf-inp" type="text" maxlength="14" placeholder="000.000.000-00" oninput="fmtCPF(this)" onkeydown="if(event.key==='Enter')consultarMargemIndividual()" style="width:220px;background:#f5f5f5;border:2px solid #e0e0e0;border-radius:6px;padding:7px 12px;font-size:14px;font-family:var(--mono);outline:none">
+        <button class="btn-ok" style="padding:7px 20px;font-size:12px" onclick="consultarMargemIndividual()">🔍 Consultar Margem</button>
+        <div id="mg-ind-status" style="font-size:12px;color:#888"></div>
+      </div>
+      <div id="mg-ind-result" style="display:none;margin-top:12px;padding:12px;background:#f5f5f5;border-radius:6px;border-left:3px solid #1a7a1a">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+          <div><span style="font-size:10px;color:#888;display:block">Servidor</span><span style="font-size:13px;font-weight:600" id="mg-i-servidor">—</span></div>
+          <div><span style="font-size:10px;color:#888;display:block">Margem Livre</span><span style="font-size:16px;font-weight:700;color:#1a7a1a" id="mg-i-livre">—</span></div>
+          <div><span style="font-size:10px;color:#888;display:block">Margem Real</span><span style="font-size:13px;font-weight:600" id="mg-i-real">—</span></div>
+          <div><span style="font-size:10px;color:#888;display:block">Situação</span><span style="font-size:13px;font-weight:600" id="mg-i-sit">—</span></div>
+          <div><span style="font-size:10px;color:#888;display:block">Convênio</span><span style="font-size:13px" id="mg-i-conv">—</span></div>
+          <div><span style="font-size:10px;color:#888;display:block">Consultado em</span><span style="font-size:11px;color:#888" id="mg-i-hora">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="padding:12px 16px;border-bottom:1px solid #e8e8e8;display:flex;align-items:center;gap:12px">
+        <span style="font-size:12px;font-weight:500">Últimas Consultas</span>
+        <span id="mg-count" style="font-size:11px;color:#888">0 resultados</span>
+        <button class="btn-sm" style="margin-left:auto;font-size:11px" onclick="carregarHistoricoMargem()">↻ Atualizar</button>
+        <button class="btn-sm" style="font-size:11px;border-color:#cc2200;color:#cc2200" onclick="if(confirm('Limpar?')){resultadosMargem=[];mgOk=0;mgSus=0;mgNenc=0;mgHoje=0;atualizarContadoresMargem();renderTabelaMargem()}">Limpar</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#f9f9f9;border-bottom:1px solid #e8e8e8">
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">CPF</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Servidor</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Secretaria</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Situação</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Margem Real</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Margem Livre</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Convênio</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Status</th>
+          <th style="text-align:left;padding:8px 12px;color:#888;font-weight:500">Hora</th>
+        </tr></thead>
+        <tbody id="mg-tbody"><tr><td colspan="9" style="text-align:center;color:#888;padding:20px">Nenhuma consulta ainda.</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -1970,6 +2036,155 @@ async function carregarInfoSistema() {
     set('cfg-imps', (d.total_importacoes||0) + ' importacoes');
   } catch(e) {}
 }
+
+// ═══════════════════════════════════════════════
+// MÓDULO MARGEM EM TEMPO REAL
+// ═══════════════════════════════════════════════
+var resultadosMargem = [];
+var mgOk = 0, mgSus = 0, mgNenc = 0, mgHoje = 0, mgAndamento = 0;
+
+async function verificarRoboLocal() {
+  var el = document.getElementById('mg-status-robo');
+  if (!el) return;
+  try {
+    var r = await fetch('http://localhost:5555/ping', {signal: AbortSignal.timeout(2000)}).then(function(r){return r.json();});
+    el.textContent = '🟢 Robô local conectado';
+    el.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:4px;background:rgba(26,122,26,.08);border:1px solid rgba(26,122,26,.4);color:#1a7a1a';
+  } catch(e) {
+    el.textContent = '🔴 Robô desconectado';
+    el.style.cssText = 'font-size:11px;padding:4px 10px;border-radius:4px;background:#f5f5f5;border:1px solid #e0e0e0;color:#888';
+  }
+}
+
+async function consultarMargemLocal(cpf) {
+  try {
+    var r = await fetch('http://localhost:5555/consultar', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({cpf: cpf}),
+      signal: AbortSignal.timeout(90000)
+    }).then(function(r){return r.json();});
+    return r;
+  } catch(e) {
+    try {
+      var d = await fetch(API + '/margem/ultima/' + cpf.replace(/\D/g,'')).then(function(r){return r.json();});
+      return {ok: true, consolidado: d};
+    } catch(e2) {
+      return {ok: false, erro: 'Robô local offline. Inicie o robô na sua máquina.'};
+    }
+  }
+}
+
+async function consultarMargemIndividual() {
+  var cpf = document.getElementById('mg-cpf-inp').value.replace(/\D/g,'');
+  if (cpf.length < 11) { alert('CPF inválido.'); return; }
+  var statusEl = document.getElementById('mg-ind-status');
+  var resultEl = document.getElementById('mg-ind-result');
+  statusEl.textContent = '⏳ Consultando...'; statusEl.style.color = '#888';
+  resultEl.style.display = 'none';
+  mgAndamento++; set('mg-andamento', mgAndamento);
+  var res = await consultarMargemLocal(cpf);
+  mgAndamento--; set('mg-andamento', mgAndamento);
+  if (res && (res.ok || res.consolidado)) {
+    var con = res.consolidado || res;
+    statusEl.textContent = '✅ ' + new Date().toLocaleTimeString('pt-BR');
+    statusEl.style.color = '#1a7a1a';
+    set('mg-i-servidor', con.servidor||'—');
+    set('mg-i-livre', 'R$ ' + brl(con.margem_livre||0));
+    set('mg-i-real', 'R$ ' + brl(con.margem_real||0));
+    set('mg-i-sit', con.situacao||'—');
+    set('mg-i-conv', con.banco||con.convenio||'—');
+    set('mg-i-hora', new Date().toLocaleString('pt-BR'));
+    resultEl.style.display = '';
+    adicionarResultadoMargem(cpf, con, 'ok');
+  } else {
+    statusEl.textContent = '❌ ' + (res ? res.erro||'Não encontrado' : 'Erro');
+    statusEl.style.color = '#cc2200';
+    adicionarResultadoMargem(cpf, {}, 'erro');
+  }
+}
+
+async function consultarMargemDashboard() {
+  var cpf = document.getElementById('f-cpf') ? document.getElementById('f-cpf').textContent.replace(/\D/g,'') : '';
+  if (!cpf || cpf.length < 11) { alert('Busque um cliente primeiro.'); return; }
+  var btn = document.getElementById('btn-consultar-margem');
+  if (btn) { btn.textContent = '⏳ Consultando...'; btn.disabled = true; }
+  pushLog('inf', 'Consultando margem em tempo real via ConsigLog...');
+  var res = await consultarMargemLocal(cpf);
+  if (btn) { btn.textContent = '🔄 Consultar Margem'; btn.disabled = false; }
+  if (res && (res.ok || res.consolidado)) {
+    var con = res.consolidado || res;
+    set('m-livre', 'R$ ' + brl(con.margem_livre||0));
+    set('m-real', 'R$ ' + brl(con.margem_real||0));
+    set('m-total', 'R$ ' + brl(con.margem_total||con.margem_real||0));
+    set('k-livre', 'R$ ' + brl(con.margem_livre||0));
+    if (con.situacao) set('f-sit', '<span class="badge b-green">'+con.situacao+'</span>');
+    pushLog('ok', 'Margem atualizada! Livre: R$ '+brl(con.margem_livre||0)+' | Real: R$ '+brl(con.margem_real||0));
+    adicionarResultadoMargem(cpf, con, 'ok');
+  } else {
+    pushLog('err', '❌ '+(res ? res.erro||'Não encontrado' : 'Robô offline'));
+  }
+}
+
+function adicionarResultadoMargem(cpf, con, status) {
+  var hora = new Date().toLocaleTimeString('pt-BR');
+  resultadosMargem.unshift({cpf:cpf,servidor:con.servidor||'—',secretaria:con.secretaria||'—',situacao:con.situacao||'—',margem_real:con.margem_real||0,margem_livre:con.margem_livre||0,convenio:con.banco||con.convenio||'—',status:status,hora:hora});
+  if (status==='ok') mgOk++; else if (status==='suspenso') mgSus++; else mgNenc++;
+  mgHoje++;
+  atualizarContadoresMargem(); renderTabelaMargem();
+}
+
+function atualizarContadoresMargem() {
+  set('mg-total',resultadosMargem.length); set('mg-ok',mgOk); set('mg-sus',mgSus);
+  set('mg-nenc',mgNenc); set('mg-hoje',mgHoje); set('mg-count',resultadosMargem.length+' resultado(s)');
+}
+
+function renderTabelaMargem() {
+  var tbody = document.getElementById('mg-tbody');
+  if (!tbody) return;
+  if (!resultadosMargem.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:#888;padding:20px">Nenhuma consulta ainda.</td></tr>'; return; }
+  var corSt = {ok:'#1a7a1a',suspenso:'#c17f00',nao_encontrado:'#888',erro:'#cc2200'};
+  tbody.innerHTML = resultadosMargem.slice(0,200).map(function(r) {
+    var cor = corSt[r.status]||'#888';
+    var marg = parseFloat(r.margem_livre||0);
+    var mc = marg>300?'#1a7a1a':marg>0?'#c17f00':'#cc2200';
+    return '<tr style="border-bottom:1px solid rgba(0,0,0,.06)">'+
+      '<td style="padding:7px 12px;font-family:var(--mono);font-size:11px">'+r.cpf+'</td>'+
+      '<td style="padding:7px 12px">'+r.servidor.slice(0,25)+'</td>'+
+      '<td style="padding:7px 12px;font-size:11px">'+r.secretaria.slice(0,12)+'</td>'+
+      '<td style="padding:7px 12px;font-size:11px">'+r.situacao.slice(0,15)+'</td>'+
+      '<td style="padding:7px 12px">R$ '+brl(r.margem_real||0)+'</td>'+
+      '<td style="padding:7px 12px;font-weight:700;color:'+mc+'">R$ '+brl(r.margem_livre||0)+'</td>'+
+      '<td style="padding:7px 12px;font-size:11px">'+r.convenio+'</td>'+
+      '<td style="padding:7px 12px"><span style="font-size:10px;font-weight:600;color:'+cor+'">'+r.status.toUpperCase()+'</span></td>'+
+      '<td style="padding:7px 12px;font-size:11px;color:#888">'+r.hora+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+async function carregarHistoricoMargem() {
+  try {
+    var d = await fetch(API+'/margem/dashboard').then(function(r){return r.json();});
+    if (d.ultimas_consultas && d.ultimas_consultas.length) {
+      resultadosMargem = [];
+      d.ultimas_consultas.forEach(function(c) {
+        resultadosMargem.push({cpf:c.cpf,servidor:c.servidor||'—',secretaria:c.secretaria||'—',situacao:c.situacao||'—',margem_real:c.margem_real||0,margem_livre:c.margem_livre||0,convenio:c.convenio||'—',status:c.status||'ok',hora:(c.consultado_em||'').slice(11,16)||'—'});
+      });
+      mgOk = d.sucesso||0; mgHoje = d.cpfs_consultados_hoje||0;
+      atualizarContadoresMargem(); renderTabelaMargem();
+    }
+  } catch(e) {}
+}
+
+function exportarMargem() {
+  if (!resultadosMargem.length) { alert('Nenhum resultado.'); return; }
+  var campos = ['cpf','servidor','secretaria','situacao','margem_real','margem_livre','convenio','status','hora'];
+  var linhas = [campos.join(';')];
+  resultadosMargem.forEach(function(r) { linhas.push(campos.map(function(c){return '"'+String(r[c]||'').replace(/"/g,'""')+'"';}).join(';')); });
+  var blob = new Blob([linhas.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'margem_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
 
 // INIT
 renderSegmentosSalvos();
