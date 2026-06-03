@@ -25,7 +25,6 @@ nav{padding:8px 10px;flex:1;overflow-y:auto}
 .dot.off{background:#d1d5db}
 .sidebar-foot{padding:12px 16px;border-top:1.5px solid #e5e7eb;font-size:11px;color:#9ca3af;background:#fafafa}
 .sidebar-foot b{color:#22c55e}
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .topbar{background:#fff;border-bottom:1.5px solid #e5e7eb;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .topbar-brand{font-size:13px;font-weight:700;color:#111827;letter-spacing:-.01em}
 .topbar-brand span{color:#6366f1}
@@ -133,19 +132,13 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
 .saved-seg-item{background:#fff;border:1px solid #e8e8e8;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
 .tag-filtro{display:inline-flex;background:rgba(26,26,26,.08);color:#1a1a1a;border:1px solid rgba(26,26,26,.2);border-radius:12px;font-size:10px;padding:2px 8px;margin:2px}
 
-/* Garantir layout centralizado e largura total */
-.main{flex:1;display:flex;flex-direction:column;overflow:hidden;width:100%;min-width:0}
-.page{flex:1;overflow-y:auto;padding:20px;display:none;width:100%}
-.page.active{display:block;width:100%}
-.db-wrap,.op-page-wrap{width:100%;max-width:100%}
-
 
 /* Cards de oportunidade compactos */
 #page-oportunidades .op-card-head{padding:10px 12px 8px}
 #page-oportunidades .op-bank-logo{width:46px;height:32px}
 #page-oportunidades .op-bank-name{font-size:12px}
 #page-oportunidades .op-bank-sub{font-size:9px}
-#page-oportunidades .op-card-body{padding:10px 12px}
+#page-oportunidades .op-card-
 #page-oportunidades .op-metric{padding:7px 9px}
 #page-oportunidades .op-metric-value{font-size:14px}
 #page-oportunidades .op-metric-full .op-metric-value{font-size:16px}
@@ -158,24 +151,31 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
 #page-oportunidades .op-type-badge{font-size:9px;padding:2px 7px}
 #page-oportunidades .op-prazo-sel{font-size:11px!important;padding:2px 4px!important}
 /* Centralizar header e filtros */
-#page-oportunidades .op-page-wrap{max-width:100%;margin:0;width:100%}
+
 /* Lista de clientes ocupa largura total abaixo */
-#op-lista-panel{max-width:100%;margin:20px 0 0!important;width:100%}
 
 
-/* FORÇAR oportunidades ocupar toda largura */
-#page-oportunidades{width:100%!important;max-width:100%!important;padding:20px!important}
-#page-oportunidades .op-page-wrap{width:100%!important;max-width:100%!important}
-#page-oportunidades .op-grid{width:100%!important;max-width:100%!important;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
-#page-oportunidades .op-header,#page-oportunidades .op-filters{width:100%!important;max-width:100%!important}
 
 
-/* RESET definitivo de layout */
-html,body{margin:0;padding:0;width:100%}
-body{display:flex!important}
-.sidebar{flex:0 0 220px!important}
-.main{flex:1 1 auto!important;width:auto!important;min-width:0!important;max-width:none!important}
-.page{box-sizing:border-box}
+
+/* Layout correto — main flexível, sem overflow horizontal */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.page{flex:1;overflow-y:auto;overflow-x:hidden;padding:20px;display:none}
+.page.active{display:block}
+/* Oportunidades: grid responsivo 4 cards por linha */
+#page-oportunidades 
+#page-oportunidades 
+
+
+#op-lista-panel{width:100%;margin-top:20px}
+
+
+/* Oportunidades — mesmo padrão do dashboard */
+#page-oportunidades .op-page-wrap{font-family:'Segoe UI',system-ui,sans-serif;min-height:100%;width:100%}
+#page-oportunidades .op-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%}
+#page-oportunidades #op-lista-panel{width:100%;margin-top:20px}
+@media(max-width:1200px){#page-oportunidades .op-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){#page-oportunidades .op-grid{grid-template-columns:repeat(2,1fr)}}
 
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -358,7 +358,7 @@ body{display:flex!important}
     .oferta-bank-logo{width:56px;height:36px;border-radius:7px;border:1px solid #f0f0f0;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:3px}
     .oferta-bank-logo img{width:100%;height:100%;object-fit:contain}
     .oferta-prazo{font-size:10px;color:#9ca3af;background:#f9fafb;padding:3px 9px;border-radius:20px;border:1px solid #e5e7eb}
-    .oferta-card-body{padding:0 14px 12px}
+    .oferta-card-
     .oferta-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f9fafb}
     .oferta-row:last-child{border:none}
     .oferta-row-label{font-size:11px;color:#9ca3af}
@@ -1137,7 +1137,6 @@ body{display:flex!important}
       </div>
     </div>
   </div>
-</div>
 
 
   <!-- OPORTUNIDADES -->
@@ -1155,7 +1154,7 @@ body{display:flex!important}
   .op-filter-btn:hover{border-color:#6366f1;color:#6366f1}
   .op-filter-btn.active{background:#6366f1;border-color:#6366f1;color:#fff}
   .op-select-all-btn{margin-left:auto;font-size:12px;color:#6366f1;background:none;border:1.5px solid #6366f1;border-radius:20px;padding:5px 14px;cursor:pointer;font-weight:600}
-  .op-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;width:100%}
+  
   /* Card */
   .op-card{background:#fff;border-radius:14px;border:1.5px solid #e5e7eb;overflow:hidden;transition:box-shadow .2s,transform .2s;position:relative}
   .op-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.10);transform:translateY(-2px)}
@@ -1173,7 +1172,7 @@ body{display:flex!important}
   .op-type-novo{background:#e8f5e9;color:#2e7d32}
   .op-type-refin{background:#fff8e1;color:#f57f17}
   .op-type-higiene{background:#f3e8ff;color:#7c3aed}
-  .op-card-body{padding:13px 16px}
+  .op-card-
   .op-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
   .op-metric{background:#f9fafb;border-radius:9px;padding:10px 12px}
   .op-metric-label{font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
@@ -1254,7 +1253,7 @@ body{display:flex!important}
   .op-tpl-logo{width:36px;height:26px;border-radius:5px;border:1px solid #e0e0e0;background:#fff;overflow:hidden;padding:2px;display:flex;align-items:center;justify-content:center}
   .op-tpl-logo img{width:100%;height:100%;object-fit:contain}
   .op-tpl-name{font-size:12px;font-weight:700;color:#111827}
-  .op-tpl-body{font-size:11px;color:#6b7280;line-height:1.5}
+  .op-tpl-
   .op-wpp-wrap{background:#e5ddd5;border-radius:8px;padding:14px;margin-bottom:14px}
   .op-wpp-bubble{background:#dcf8c6;border-radius:10px 10px 10px 0;padding:11px 13px;font-size:12px;line-height:1.6;color:#1a1a1a;max-width:85%;box-shadow:0 1px 2px rgba(0,0,0,.1)}
   .op-form-grp{margin-bottom:12px}
@@ -2185,7 +2184,6 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
     },500);
   }, 500);
   </script>
-
   <!-- MARGEM EM LOTE -->
   <div class="page" id="page-margem">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
