@@ -1522,36 +1522,37 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
     var prazo = sel.value;
     var coef = OP_COEFS[banco] && OP_COEFS[banco][prazo] ? OP_COEFS[banco][prazo] : 0.02268;
 
-    // Calcular estatísticas da base
-    var margemMedia = 0, margemTotal = 0, clientesAtivos = 0;
-    var valorMedioLib = 0, valorTotalLib = 0;
-    if (todosServidores && todosServidores.length) {
+    // Calcular com dados reais ou usar fallback
+    var margemMedia = 500, margemTotal = 0, clientesAtivos = 0;
+    var temDados = false;
+
+    if (typeof todosServidores !== 'undefined' && todosServidores && todosServidores.length > 0) {
       var ativos = todosServidores.filter(function(r) {
         var m = parseFloat(r.MARGEM_DISPONIVEL||0);
         var s = (r.SITUACAO||'').toUpperCase();
         return m > 0 && s.indexOf('ATIVO') >= 0 && s.indexOf('OBIT') < 0;
       });
       clientesAtivos = ativos.length;
-      if (ativos.length) {
+      if (ativos.length > 0) {
         var soma = ativos.reduce(function(acc,r){ return acc+parseFloat(r.MARGEM_DISPONIVEL||0); },0);
         margemTotal = soma;
         margemMedia = soma / ativos.length;
-        // Valor liberado = margem / fator
-        valorMedioLib = margemMedia / coef;
-        valorTotalLib = margemTotal / coef;
+        temDados = true;
       }
     }
-    if (!margemMedia) { margemMedia = 500; valorMedioLib = margemMedia / coef; }
 
-    // Atualizar coeficiente no card
-    var card = document.getElementById('opcard-' + banco);
-    if (!card) return;
+    // Valor liberado = margem / fator (Price)
+    var valorMedioLib = margemMedia / coef;
+    var valorTotalLib = temDados ? margemTotal / coef : 0;
 
-    // Atualizar valor principal do card
+    // Atualizar valor principal
     var valEl = document.getElementById('op-val-' + banco);
     if (valEl) {
-      valEl.innerHTML = 'R$ ' + brl(valorMedioLib) +
-        '<span style="font-size:11px;font-weight:400;color:#9ca3af;display:block;margin-top:2px">por cliente (margem média R$ ' + brl(margemMedia) + ')</span>';
+      valEl.innerHTML =
+        '<span style="font-size:20px;font-weight:800">R$ ' + brl(valorMedioLib) + '</span>' +
+        '<span style="font-size:10px;font-weight:400;color:#9ca3af;display:block;margin-top:3px">' +
+        'Margem ' + (temDados ? 'média' : 'ex.') + ' R$ ' + brl(margemMedia) + ' ÷ ' + coef.toFixed(5).replace('.',',') +
+        '</span>';
     }
 
     // Atualizar sub info
@@ -1559,18 +1560,21 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
     if (subEl) {
       subEl.innerHTML =
         '<span style="color:#6366f1;font-weight:600">Fator: ' + coef.toFixed(5).replace('.',',') + '</span>' +
-        ' &nbsp;|&nbsp; ' +
-        '<span style="color:#2e7d32;font-weight:600">Potencial total: R$ ' + brl(valorTotalLib) + '</span>' +
-        ' &nbsp;(' + (clientesAtivos||'—') + ' clientes)';
+        (temDados ?
+          ' &nbsp;|&nbsp; <span style="color:#2e7d32;font-weight:600">Potencial base: R$ ' + brl(valorTotalLib) + '</span> (' + clientesAtivos.toLocaleString('pt-BR') + ' clientes)' :
+          ' &nbsp;|&nbsp; <span style="color:#9ca3af">Clique em Atualizar para ver potencial real</span>'
+        );
     }
 
     // Atualizar barra
     var pctEl = document.getElementById('op-pct-' + banco);
     var fillEl = document.getElementById('op-fill-' + banco);
-    var total = todosServidores ? todosServidores.length : 1;
-    var pct = total > 0 ? Math.min(Math.round(clientesAtivos/total*100*3),100) : 0;
-    if (pctEl) pctEl.textContent = 'Potencial: R$ ' + brl(valorTotalLib);
-    if (fillEl) fillEl.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = temDados ? 'Potencial: R$ ' + brl(valorTotalLib) : 'Aguardando base...';
+    if (fillEl) {
+      var total = (typeof todosServidores !== 'undefined' && todosServidores) ? todosServidores.length : 1;
+      var pct = temDados && total > 0 ? Math.min(Math.round(clientesAtivos/total*200), 100) : 30;
+      fillEl.style.width = pct + '%';
+    }
   }
 
   function opCalcularMargemGeral() {
@@ -1621,8 +1625,13 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
     if(_origAnalisar)_origAnalisar();
     opAtualizarCards();
   }
-  // Chamar automaticamente ao carregar dados
+  // Calcular imediatamente com fallback e atualizar quando dados chegarem
   setTimeout(function() {
+    // Calcular agora mesmo (com fallback se sem dados)
+    ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){
+      opRecalcular(b);
+    });
+    // Continuar tentando com dados reais
     var tentativas = 0;
     var iv = setInterval(function() {
       tentativas++;
@@ -1630,9 +1639,9 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
         clearInterval(iv);
         opAtualizarCards();
       }
-      if (tentativas > 30) clearInterval(iv); // desistir após 15s
+      if (tentativas > 40) clearInterval(iv);
     }, 500);
-  }, 1000);
+  }, 300);
   </script>
 
   <!-- MARGEM EM LOTE -->
