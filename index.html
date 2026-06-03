@@ -1282,6 +1282,7 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
       <button class="op-filter-btn" onclick="opFiltrar(this,'refin')">Refinanciamento</button>
       <button class="op-filter-btn" onclick="opFiltrar(this,'higiene')">Higienização</button>
       <button class="op-select-all-btn" onclick="opSelecionarTodos()">Selecionar todos</button>
+      <button class="op-select-all-btn" onclick="opDesmarcarTodos()" style="border-color:#cc2200;color:#cc2200">Desmarcar todos</button>
     </div>
 
     <!-- Card Total Margem Geral -->
@@ -1880,6 +1881,21 @@ _Bravo Consignado · Vitória da Conquista - BA_</textarea>
       chk.classList.add('checked');
       card.classList.add('selected');
     }
+    opAtualizarSel();
+  }
+
+  function opDesmarcarTodos() {
+    opSelecionados = {};
+    document.querySelectorAll('.op-card').forEach(function(card){
+      var id = card.id.replace('opcard-','');
+      var chk = document.getElementById('opchk-'+id);
+      if (chk) { chk.classList.remove('checked'); }
+      card.classList.remove('selected');
+    });
+    // Desmarcar também checkboxes da tabela
+    document.querySelectorAll('.op-check').forEach(function(chk){ chk.classList.remove('checked'); });
+    var selectAll = document.getElementById('op-select-all');
+    if (selectAll) selectAll.checked = false;
     opAtualizarSel();
   }
 
@@ -3058,7 +3074,18 @@ function mostrarNotificacao(msg, tipo) {
 async function filtrarOportunidadeAPI(tipo) {
   var titulos = {quente:'Clientes QUENTES',morno:'Clientes MORNOS',frio:'Clientes FRIOS',sem:'Sem Oportunidade',refin:'Refinanciamento',livre:'Margem 100% Livre'};
   var cores = {quente:'#1a7a1a',morno:'#c17f00',frio:'#cc2200',sem:'#888',refin:'#5a3ea0',livre:'#1a1a1a'};
+  // MOSTRAR o painel da lista
+  var panel = document.getElementById('op-lista-panel');
+  if (panel) {
+    panel.style.display = '';
+    panel.scrollIntoView({behavior:'smooth', block:'start'});
+  }
   set('op-lista-titulo', '<span style="color:' + (cores[tipo]||'#1a1a1a') + '">Carregando...</span>');
+  // Se já temos a base local, filtrar direto (mais rápido e confiável)
+  if (todosServidores && todosServidores.length > 0) {
+    filtrarOportunidade(tipo === 'refin' ? 'refinanciamento' : tipo);
+    return;
+  }
   try {
     var d = await fetch(API + '/oportunidades/lista/' + tipo).then(function(r) { return r.json(); });
     listaOportunidadeAtual = d;
@@ -3068,7 +3095,7 @@ async function filtrarOportunidadeAPI(tipo) {
     show('op-exportar-btn');
     renderTabelaOportunidades(d);
   } catch(e) {
-    filtrarOportunidade(tipo);
+    filtrarOportunidade(tipo === 'refin' ? 'refinanciamento' : tipo);
   }
 }
 
@@ -3114,7 +3141,13 @@ function analisarOportunidades() {
 }
 
 function filtrarOportunidade(tipo) {
-  if (!todosServidores.length) {  return; }
+  if (!todosServidores.length) {
+    if (typeof carregarBase === 'function') carregarBase();
+    return;
+  }
+  // Mostrar painel da lista
+  var _panel = document.getElementById('op-lista-panel');
+  if (_panel) _panel.style.display = '';
   var titulos = {
     quente: 'Clientes QUENTES — Margem acima de R$ 300',
     morno: 'Clientes MORNOS — Margem entre R$ 50 e R$ 299',
