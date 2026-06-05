@@ -109,6 +109,158 @@ def init_db():
 
 init_db()
 
+# ═══════════════════════════════════════════════════════════════
+# HIGIENIZAÇÃO SAFRA
+# ═══════════════════════════════════════════════════════════════
+
+def init_higienizacao():
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS higienizacao_safra (
+                    id SERIAL PRIMARY KEY,
+                    cpf TEXT NOT NULL,
+                    nome TEXT,
+                    matricula TEXT,
+                    id_contrato TEXT,
+                    nome_convenio TEXT,
+                    ds_produto TEXT,
+                    valor_principal REAL DEFAULT 0,
+                    valor_parcela REAL DEFAULT 0,
+                    prazo INTEGER DEFAULT 0,
+                    parcelas_pagas INTEGER DEFAULT 0,
+                    parcelas_restantes INTEGER DEFAULT 0,
+                    proximo_vencimento TEXT,
+                    data_consultado TEXT,
+                    importado_em TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
+                );
+                CREATE INDEX IF NOT EXISTS idx_hig_cpf ON higienizacao_safra(cpf);
+                CREATE INDEX IF NOT EXISTS idx_hig_parcelas ON higienizacao_safra(parcelas_pagas);
+                CREATE INDEX IF NOT EXISTS idx_hig_parcela_val ON higienizacao_safra(valor_parcela);
+            """)
+        conn.commit()
+    log.info("Tabela higienizacao_safra OK.")
+
+init_higienizacao()
+
+@app.post("/importar-higienizacao")
+async def importar_higienizacao(file: UploadFile = File(...)):
+    content = await file.read()
+    text = None
+    for enc in ["utf-8-sig","utf-8","latin-1","cp1252"]:
+        try: text = content.decode(enc); break
+        except: continue
+    if not text:
+        raise HTTPException(400, "Nao foi possivel ler o arquivo.")
+    reader = csv.DictReader(io.StringIO(text), delimiter=';')
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(400, "Arquivo vazio.")
+    inseridos = ignorados = 0
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM higienizacao_safra")
+            for row in rows:
+                try:
+                    cpf = limpar_cpf(row.get('cpf',''))
+                    id_contrato = (row.get('id_contrato') or '').strip()
+                    if not cpf or not id_contrato:
+                        ignorados += 1; continue
+                    cur.execute("""
+                        INSERT INTO higienizacao_safra
+                            (cpf,nome,matricula,id_contrato,nome_convenio,ds_produto,
+                             valor_principal,valor_parcela,prazo,parcelas_pagas,
+                             parcelas_restantes,proximo_vencimento,data_consultado)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """, (
+                        cpf,
+                        (row.get('nome') or '').strip(),
+                        (row.get('matricula') or '').strip(),
+                        id_contrato,
+                        (row.get('nome_convenio') or '').strip(),
+                        (row.get('ds_produto') or '').strip(),
+                        limpar_valor(row.get('valor_principal','0')),
+                        limpar_valor(row.get('valor_parcela','0')),
+                        int(row.get('prazo','0') or 0),
+                        int(row.get('parcelas_pagas','0') or 0),
+                        int(row.get('parcelas_restantes','0') or 0),
+                        (row.get('proximo_vencimento') or '').strip()[:10],
+                        (row.get('data_consultado') or '').strip()[:10],
+                    ))
+                    inseridos += 1
+                except:
+                    ignorados += 1
+        conn.commit()
+    return {"ok":True,"inseridos":inseridos,"ignorados":ignorados,
+            "mensagem":f"{inseridos} contratos importados, {ignorados} ignorados."}
+
+@app.get("/higienizacao/resumo")
+def higienizacao_resumo():
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(DISTINCT cpf) as cpfs FROM higienizacao_safra")
+                cpfs = cur.fetchone()["cpfs"]
+                cur.execute("SELECT COUNT(*) as contratos FROM higienizacao_safra")
+                contratos = cur.fetchone()["contratos"]
+                cur.execute("SELECT COALESCE(SUM(valor_principal),0) as total FROM higienizacao_safra")
+                total = float(cur.fetchone()["total"])
+                cur.execute("SELECT COUNT(*) as n FROM higienizacao_safra WHERE ds_produto='NOVO'")
+                novo = cur.fetchone()["n"]
+                cur.execute("SELECT COUNT(*) as n FROM higienizacao_safra WHERE ds_produto='REFIN'")
+                refin = cur.fetchone()["n"]
+                cur.execute("SELECT MAX(data_consultado) as dt FROM higienizacao_safra")
+                ultima = cur.fetchone()["dt"]
+        return {"cpfs":cpfs,"contratos":contratos,"total_principal":total,
+                "novo":novo,"refin":refin,"ultima_consultado":ultima}
+    except:
+        return {"cpfs":0,"contratos":0,"total_principal":0,"novo":0,"refin":0,"ultima_consultado":None}
+
+@app.get("/higienizacao/lista")
+def higienizacao_lista(
+    parcelas_pagas_min: int = 0,
+    parcelas_pagas_max: int = 9999,
+    parcela_min: float = 0,
+    parcela_max: float = 9999999,
+    tipo: str = "",
+    busca: str = ""
+):
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            query = """
+                SELECT cpf,nome,matricula,id_contrato,nome_convenio,ds_produto,
+                       valor_principal,valor_parcela,prazo,
+                       parcelas_pagas,parcelas_restantes,proximo_vencimento,data_consultado
+                FROM higienizacao_safra
+                WHERE parcelas_pagas >= %s AND parcelas_pagas <= %s
+                  AND valor_parcela  >= %s AND valor_parcela  <= %s
+            """
+            params = [parcelas_pagas_min, parcelas_pagas_max, parcela_min, parcela_max]
+            if tipo:
+                query += " AND ds_produto = %s"
+                params.append(tipo.upper())
+            if busca:
+                query += " AND (LOWER(nome) LIKE %s OR cpf LIKE %s)"
+                b = f"%{busca.lower()}%"
+                params.extend([b, f"%{busca}%"])
+            query += " ORDER BY cpf, parcelas_pagas DESC"
+            cur.execute(query, params)
+            rows = [dict(r) for r in cur.fetchall()]
+    from collections import defaultdict
+    agrupado = defaultdict(lambda: {"cpf":"","nome":"","matricula":"","contratos":[],"total_parcela":0.0})
+    for r in rows:
+        cpf = r["cpf"]
+        agrupado[cpf]["cpf"] = cpf
+        agrupado[cpf]["nome"] = r["nome"]
+        agrupado[cpf]["matricula"] = r["matricula"]
+        agrupado[cpf]["contratos"].append(r)
+        agrupado[cpf]["total_parcela"] += r["valor_parcela"]
+    return list(agrupado.values())
+
+# ═══════════════════════════════════════════════════════════════
+# FUNÇÕES AUXILIARES
+# ═══════════════════════════════════════════════════════════════
+
 _job_status = {}
 
 @app.on_event("startup")
@@ -299,173 +451,9 @@ async def rodar_bots_paralelo(job_id, cpf, operador):
             else:
                 push("CPF nao encontrado.")
                 _job_status[job_id].update({"status":"concluido","dados":{}})
-# ═══════════════════════════════════════════════════════════════
-# HIGIENIZAÇÃO SAFRA — Cole este bloco no main.py
-# PASSO 1: Cole após init_db()
-# PASSO 2: Chame init_higienizacao() logo abaixo de init_db()
-# ═══════════════════════════════════════════════════════════════
-
-def init_higienizacao():
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS higienizacao_safra (
-                    id SERIAL PRIMARY KEY,
-                    cpf TEXT NOT NULL,
-                    nome TEXT,
-                    matricula TEXT,
-                    id_contrato TEXT,
-                    nome_convenio TEXT,
-                    ds_produto TEXT,
-                    valor_principal REAL DEFAULT 0,
-                    valor_parcela REAL DEFAULT 0,
-                    prazo INTEGER DEFAULT 0,
-                    parcelas_pagas INTEGER DEFAULT 0,
-                    parcelas_restantes INTEGER DEFAULT 0,
-                    proximo_vencimento TEXT,
-                    data_consultado TEXT,
-                    importado_em TEXT DEFAULT to_char(now(),'DD/MM/YYYY HH24:MI:SS')
-                );
-                CREATE INDEX IF NOT EXISTS idx_hig_cpf ON higienizacao_safra(cpf);
-                CREATE INDEX IF NOT EXISTS idx_hig_parcelas ON higienizacao_safra(parcelas_pagas);
-                CREATE INDEX IF NOT EXISTS idx_hig_parcela_val ON higienizacao_safra(valor_parcela);
-            """)
-        conn.commit()
-    log.info("Tabela higienizacao_safra OK.")
-
-init_higienizacao()
-
-
-@app.post("/importar-higienizacao")
-async def importar_higienizacao(file: UploadFile = File(...)):
-    content = await file.read()
-    text = None
-    for enc in ["utf-8-sig","utf-8","latin-1","cp1252"]:
-        try: text = content.decode(enc); break
-        except: continue
-    if not text:
-        raise HTTPException(400, "Nao foi possivel ler o arquivo.")
-
-    reader = csv.DictReader(io.StringIO(text), delimiter=';')
-    rows = list(reader)
-    if not rows:
-        raise HTTPException(400, "Arquivo vazio.")
-
-    inseridos = ignorados = 0
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            # Limpa dados anteriores e reimporta
-            cur.execute("DELETE FROM higienizacao_safra")
-            for row in rows:
-                try:
-                    cpf = limpar_cpf(row.get('cpf',''))
-                    id_contrato = (row.get('id_contrato') or '').strip()
-                    if not cpf or not id_contrato:
-                        ignorados += 1; continue
-                    cur.execute("""
-                        INSERT INTO higienizacao_safra
-                            (cpf,nome,matricula,id_contrato,nome_convenio,ds_produto,
-                             valor_principal,valor_parcela,prazo,parcelas_pagas,
-                             parcelas_restantes,proximo_vencimento,data_consultado)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    """, (
-                        cpf,
-                        (row.get('nome') or '').strip(),
-                        (row.get('matricula') or '').strip(),
-                        id_contrato,
-                        (row.get('nome_convenio') or '').strip(),
-                        (row.get('ds_produto') or '').strip(),
-                        limpar_valor(row.get('valor_principal','0')),
-                        limpar_valor(row.get('valor_parcela','0')),
-                        int(row.get('prazo','0') or 0),
-                        int(row.get('parcelas_pagas','0') or 0),
-                        int(row.get('parcelas_restantes','0') or 0),
-                        (row.get('proximo_vencimento') or '').strip()[:10],
-                        (row.get('data_consultado') or '').strip()[:10],
-                    ))
-                    inseridos += 1
-                except:
-                    ignorados += 1
-        conn.commit()
-
-    return {
-        "ok": True,
-        "inseridos": inseridos,
-        "ignorados": ignorados,
-        "mensagem": f"{inseridos} contratos importados, {ignorados} ignorados."
-    }
-
-
-@app.get("/higienizacao/resumo")
-def higienizacao_resumo():
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(DISTINCT cpf) as cpfs FROM higienizacao_safra")
-                cpfs = cur.fetchone()["cpfs"]
-                cur.execute("SELECT COUNT(*) as contratos FROM higienizacao_safra")
-                contratos = cur.fetchone()["contratos"]
-                cur.execute("SELECT COALESCE(SUM(valor_principal),0) as total FROM higienizacao_safra")
-                total = float(cur.fetchone()["total"])
-                cur.execute("SELECT COUNT(*) as n FROM higienizacao_safra WHERE ds_produto='NOVO'")
-                novo = cur.fetchone()["n"]
-                cur.execute("SELECT COUNT(*) as n FROM higienizacao_safra WHERE ds_produto='REFIN'")
-                refin = cur.fetchone()["n"]
-                cur.execute("SELECT MAX(data_consultado) as dt FROM higienizacao_safra")
-                ultima = cur.fetchone()["dt"]
-        return {
-            "cpfs": cpfs, "contratos": contratos, "total_principal": total,
-            "novo": novo, "refin": refin, "ultima_consultado": ultima
-        }
-    except:
-        return {"cpfs":0,"contratos":0,"total_principal":0,"novo":0,"refin":0,"ultima_consultado":None}
-
-
-@app.get("/higienizacao/lista")
-def higienizacao_lista(
-    parcelas_pagas_min: int = 0,
-    parcelas_pagas_max: int = 9999,
-    parcela_min: float = 0,
-    parcela_max: float = 9999999,
-    tipo: str = "",
-    busca: str = ""
-):
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            query = """
-                SELECT cpf, nome, matricula, id_contrato, nome_convenio, ds_produto,
-                       valor_principal, valor_parcela, prazo,
-                       parcelas_pagas, parcelas_restantes, proximo_vencimento, data_consultado
-                FROM higienizacao_safra
-                WHERE parcelas_pagas >= %s AND parcelas_pagas <= %s
-                  AND valor_parcela  >= %s AND valor_parcela  <= %s
-            """
-            params = [parcelas_pagas_min, parcelas_pagas_max, parcela_min, parcela_max]
-            if tipo:
-                query += " AND ds_produto = %s"
-                params.append(tipo.upper())
-            if busca:
-                query += " AND (LOWER(nome) LIKE %s OR cpf LIKE %s)"
-                b = f"%{busca.lower()}%"
-                params.extend([b, f"%{busca}%"])
-            query += " ORDER BY cpf, parcelas_pagas DESC"
-            cur.execute(query, params)
-            rows = [dict(r) for r in cur.fetchall()]
-
-    # Agrupar por CPF
-    from collections import defaultdict
-    agrupado = defaultdict(lambda: {"cpf":"","nome":"","matricula":"","contratos":[],"total_parcela":0.0})
-    for r in rows:
-        cpf = r["cpf"]
-        agrupado[cpf]["cpf"]         = cpf
-        agrupado[cpf]["nome"]        = r["nome"]
-        agrupado[cpf]["matricula"]   = r["matricula"]
-        agrupado[cpf]["contratos"].append(r)
-        agrupado[cpf]["total_parcela"] += r["valor_parcela"]
-    return list(agrupado.values())
 
 # ═══════════════════════════════════════════════════════════════
-# ENDPOINTS EXISTENTES
+# ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
 @app.get("/")
@@ -496,21 +484,53 @@ def listar_colunas():
             return [dict(r) for r in cur.fetchall()]
 
 @app.get("/base/todos")
-def base_todos():
+def base_todos(limit: int = 50000, offset: int = 0):
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT cpf, dados, importado_em FROM base_servidores WHERE cpf != '__contas__' ORDER BY importado_em DESC")
+            cur.execute(
+                "SELECT cpf, dados, importado_em FROM base_servidores WHERE cpf != '__contas__' ORDER BY id LIMIT %s OFFSET %s",
+                (limit, offset)
+            )
             rows = cur.fetchall()
     resultado = []
+    campos_valor = ["MARGEM_DISPONIVEL","MARGEM_REAL","MARGEM_TOTAL","MARG_DISP_TABELA","VALOR_DESCONTO","DESCONTOS","VD","VD_DESCONTO"]
     for r in rows:
         try:
             d = json.loads(r["dados"])
             d["_importado_em"] = r["importado_em"]
-            for c in ["MARGEM_DISPONIVEL","MARGEM_REAL","MARGEM_TOTAL","MARG_DISP_TABELA","VALOR_DESCONTO","DESCONTOS","VD","VD_DESCONTO"]:
-                if c in d: d[c] = limpar_valor(d[c])
-            resultado.append(d)
+            # Retornar apenas campos essenciais para economizar memória
+            essencial = {
+                "CPF": d.get("CPF",""),
+                "SERVIDOR": d.get("SERVIDOR",""),
+                "MATRICULA": d.get("MATRICULA",""),
+                "SECRETARIA": d.get("SECRETARIA",""),
+                "LOTACAO": d.get("LOTACAO",""),
+                "SITUACAO": d.get("SITUACAO",""),
+                "TIPO_SERVIDOR": d.get("TIPO_SERVIDOR",""),
+                "MARGEM_DISPONIVEL": limpar_valor(d.get("MARGEM_DISPONIVEL",0)),
+                "MARGEM_TOTAL": limpar_valor(d.get("MARGEM_TOTAL",0)),
+                "MARGEM_REAL": limpar_valor(d.get("MARGEM_REAL",0)),
+                "VALOR_DESCONTO": limpar_valor(d.get("VALOR_DESCONTO",0)),
+                "QTD_DESCONTO": d.get("QTD_DESCONTO","0"),
+                "MOTIVO_SITUACAO": d.get("MOTIVO_SITUACAO",""),
+                "_importado_em": r["importado_em"]
+            }
+            resultado.append(essencial)
         except: pass
     return resultado
+
+@app.get("/base/todos/completo/{cpf}")
+def base_todos_completo(cpf: str):
+    """Retorna todos os dados de um CPF específico"""
+    cpf = limpar_cpf(cpf)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT dados, importado_em FROM base_servidores WHERE cpf=%s", (cpf,))
+            row = cur.fetchone()
+    if not row: raise HTTPException(404, "CPF nao encontrado.")
+    d = json.loads(row["dados"])
+    d["_importado_em"] = row["importado_em"]
+    return d
 
 @app.get("/base/stats")
 def base_stats():
@@ -689,13 +709,8 @@ def gerar_licenca(req: GerarLicencaRequest):
                 VALUES (%s,%s,%s,%s,'pendente',%s)
             """, (chave, req.cliente_nome, req.cliente_fone, req.dias, req.observacao))
         conn.commit()
-    return {
-        "ok"      : True,
-        "chave"   : chave,
-        "cliente" : req.cliente_nome,
-        "dias"    : req.dias,
-        "mensagem": f"Chave gerada! Envie ao cliente: {chave}",
-    }
+    return {"ok":True,"chave":chave,"cliente":req.cliente_nome,"dias":req.dias,
+            "mensagem":f"Chave gerada! Envie ao cliente: {chave}"}
 
 @app.post("/licenca/validar")
 def validar_licenca(req: ValidarLicencaRequest):
@@ -707,7 +722,6 @@ def validar_licenca(req: ValidarLicencaRequest):
         return {"valida":False,"motivo":"Chave nao encontrada."}
     if lic["status"] == "bloqueada":
         return {"valida":False,"motivo":"Licenca bloqueada. Contate o suporte."}
-    # Primeira ativação
     if lic["status"] == "pendente":
         agora  = datetime.now()
         expira = agora + timedelta(days=lic["dias"])
@@ -725,10 +739,8 @@ def validar_licenca(req: ValidarLicencaRequest):
             conn.commit()
         return {"valida":True,"motivo":"Licenca ativada!","cliente":lic["cliente_nome"],
                 "dias_restantes":lic["dias"],"expira_em":expira.strftime("%d/%m/%Y"),"primeira_vez":True}
-    # Verifica hardware
     if lic["hardware_id"] and lic["hardware_id"] != req.hardware_id:
         return {"valida":False,"motivo":"Licenca vinculada a outro computador.\nContate o suporte para transferir."}
-    # Verifica validade
     try:
         expira_dt = datetime.strptime(lic["expira_em"], "%d/%m/%Y %H:%M:%S")
     except:
@@ -741,7 +753,6 @@ def validar_licenca(req: ValidarLicencaRequest):
             conn.commit()
         dias_v = (agora - expira_dt).days
         return {"valida":False,"motivo":f"Licenca vencida ha {dias_v} dia(s).\nContate o suporte para renovar.","vencida":True}
-    # OK
     dias_rest = (expira_dt - agora).days
     with get_db() as conn:
         with conn.cursor() as cur:
@@ -811,7 +822,7 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
 # ═══════════════════════════════════════════════════════════════
-# FILA DE CONSULTA DE MARGEM (robô local lê daqui)
+# FILA DE CONSULTA DE MARGEM
 # ═══════════════════════════════════════════════════════════════
 
 class FilaMargemRequest(BaseModel):
@@ -819,13 +830,11 @@ class FilaMargemRequest(BaseModel):
 
 @app.post("/margem/solicitar")
 def solicitar_margem(req: FilaMargemRequest):
-    """CRM chama para enfileirar consulta. Robô local pega e processa."""
     cpf = limpar_cpf(req.cpf)
     if not cpf:
         raise HTTPException(400, "CPF inválido.")
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Verifica se já tem pendente para este CPF
             cur.execute("SELECT id FROM consultas_margem_fila WHERE cpf=%s AND status IN ('pendente','processando')", (cpf,))
             if cur.fetchone():
                 return {"ok": True, "mensagem": "Já na fila.", "cpf": cpf}
@@ -835,18 +844,12 @@ def solicitar_margem(req: FilaMargemRequest):
 
 @app.get("/margem/resultado/{cpf}")
 def resultado_margem(cpf: str):
-    """CRM faz polling para ver se resultado chegou."""
     cpf = limpar_cpf(cpf)
     with get_db() as conn:
         with conn.cursor() as cur:
-            # Verifica fila
             cur.execute("SELECT status FROM consultas_margem_fila WHERE cpf=%s ORDER BY criado_em DESC LIMIT 1", (cpf,))
             fila = cur.fetchone()
-            # Resultado mais recente
-            cur.execute("""
-                SELECT * FROM consultas_margem
-                WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1
-            """, (cpf,))
+            cur.execute("SELECT * FROM consultas_margem WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1", (cpf,))
             res = cur.fetchone()
     status_fila = fila["status"] if fila else "nenhuma"
     if res:
@@ -855,7 +858,6 @@ def resultado_margem(cpf: str):
 
 @app.get("/margem/dashboard")
 def dashboard_margem():
-    """Estatísticas das consultas de margem."""
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
