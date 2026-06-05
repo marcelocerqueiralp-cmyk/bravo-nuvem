@@ -1009,27 +1009,7 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
       </label>
     </div>
   </div>
-    <!-- Importacao Higienizacao Safra -->
-    <div style="background:linear-gradient(135deg,#1a2a5e,#2d4373);border-radius:12px;padding:18px 22px;margin-bottom:18px;color:#fff;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px">🏦 Higienização Safra — Governo Bahia</div>
-        <div style="font-size:12px;opacity:.85">Importe a planilha CSV de higienização de refinanciamento. Substitui os dados anteriores.</div>
-        <div style="font-size:11px;opacity:.7;margin-top:6px" id="hig-import-status"></div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <input type="file" id="hig-file-input" accept=".csv" style="display:none" onchange="higImportar(this)">
-        <button onclick="document.getElementById('hig-file-input').click()" style="background:#fff;color:#1a2a5e;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">📥 Importar Higienização</button>
-      </div>
-    </div>
-
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:500">Historico de Importacoes</div>
-      <button class="btn-green" onclick="abrirImport()">+ Nova Importacao</button>
-    </div>
-    <div id="import-hist-list"><div style="color:#888;font-size:13px">Carregando...</div></div>
-  </div>
-
-  <!-- SUB-PLANILHAS -->
+    
   <div class="page" id="page-segmentos">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div><div style="font-size:14px;font-weight:600">Sub-planilhas Inteligentes</div></div>
