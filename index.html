@@ -2716,25 +2716,35 @@ async function carregarBase() {
   var tb = document.getElementById('base-tbody');
   var badge = document.getElementById('base-badge');
   var dbSub = document.getElementById('db-sub-data');
-  if (tb) tb.innerHTML = '<tr><td colspan="8" style="color:#888;text-align:center;padding:20px">Carregando base...</td></tr>';
+  var stat = document.getElementById('base-stat');
   if (badge) { badge.textContent = 'Carregando...'; badge.style.color = '#6366f1'; }
+  if (dbSub) dbSub.textContent = 'Carregando base...';
+  todosServidores = [];
+  var offset = 0, limite = 50000;
   try {
-    var d = await fetch(API + '/base/todos').then(function(r) { return r.json(); });
-    if (!d || !d.length) throw new Error('Resposta vazia');
-    todosServidores = d;
-    popularFiltros(d); calcularStats(d); filtrarBase();
-    if (badge) { badge.textContent = 'Base: ' + d.length.toLocaleString('pt-BR') + ' servidores'; badge.style.color = '#1a7a1a'; }
-    var stat = document.getElementById('base-stat');
-    if (stat) stat.innerHTML = d.length.toLocaleString('pt-BR') + ' registros';
-    if (dbSub) dbSub.textContent = d.length.toLocaleString('pt-BR') + ' servidores';
+    while(true) {
+      var resp = await fetch(API + '/base/todos?limit=' + limite + '&offset=' + offset);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      var parte = await resp.json();
+      if (!parte || !parte.length) break;
+      todosServidores = todosServidores.concat(parte);
+      if (badge) badge.textContent = 'Base: ' + todosServidores.length.toLocaleString('pt-BR') + '...';
+      if (parte.length < limite) break;
+      offset += limite;
+    }
+    if (!todosServidores.length) throw new Error('Base vazia');
+    popularFiltros(todosServidores); calcularStats(todosServidores); filtrarBase();
+    var total = todosServidores.length;
+    if (badge) { badge.textContent = 'Base: ' + total.toLocaleString('pt-BR') + ' servidores'; badge.style.color = '#1a7a1a'; }
+    if (stat) stat.innerHTML = total.toLocaleString('pt-BR') + ' registros';
+    if (dbSub) dbSub.textContent = total.toLocaleString('pt-BR') + ' servidores';
     if (typeof dbAtualizarKPIs === 'function') dbAtualizarKPIs();
     if (typeof opAtualizarCards === 'function') opAtualizarCards();
     if (typeof opCalcularMargemGeral === 'function') opCalcularMargemGeral();
   } catch(e) {
     console.error('Erro carregarBase:', e);
+    if (badge) { badge.textContent = 'Erro — tente novamente'; badge.style.color = '#cc2200'; }
     if (tb) tb.innerHTML = '<tr><td colspan="8" style="color:#cc2200;text-align:center;padding:20px">Erro: ' + e.message + ' <button onclick="carregarBase()" style="margin-left:8px;padding:4px 12px;background:#6366f1;color:#fff;border:none;border-radius:5px;cursor:pointer">Tentar novamente</button></td></tr>';
-    if (badge) { badge.textContent = 'Erro — clique para recarregar'; badge.style.color = '#cc2200'; }
-    if (dbSub) dbSub.textContent = 'Erro ao carregar base';
   }
 }
 
