@@ -2572,13 +2572,31 @@ function irPara(pg, el) {
   if (pg === 'whatsapp') { carregarStatusWA(); carregarLogBot(); }
   if (pg === 'leads') carregarLeads();
   if (pg === 'oportunidades') {
-    // Mostrar cards imediatamente com dados disponíveis
+    // Calcular cards imediatamente
     setTimeout(function() {
       ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
       if (todosServidores && todosServidores.length > 0) {
         opAtualizarCards();
         opCalcularMargemGeral();
       }
+    }, 200);
+    // Carregar base se vazia
+    if (!todosServidores || todosServidores.length === 0) {
+      if (typeof carregarBase === 'function') carregarBase();
+    }
+    // Atualizar quando base crescer
+    var _opLen = todosServidores ? todosServidores.length : 0;
+    var _opIv = setInterval(function() {
+      var newLen = todosServidores ? todosServidores.length : 0;
+      if (newLen > _opLen) {
+        _opLen = newLen;
+        opAtualizarCards();
+        opCalcularMargemGeral();
+        ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
+      }
+    }, 1000);
+    setTimeout(function(){ clearInterval(_opIv); }, 120000);
+  }
     }, 100);
     // Carregar base se vazia
     if ((!todosServidores || todosServidores.length === 0) && typeof carregarBase === 'function') {
@@ -4141,25 +4159,4 @@ window.addEventListener('load', function() {
     document.getElementById('hig-lista-body').innerHTML = html;
   }
 
-  function higExportar() {
-    if (!_higDados.length) { alert('Nenhum dado para exportar.'); return; }
-    var linhas = ['CPF;Nome;Matricula;Contrato;Convenio;Tipo;Principal;Parcela;Prazo;Pagas;Restantes'];
-    _higDados.forEach(function(cli) {
-      cli.contratos.forEach(function(c) {
-        linhas.push([cli.cpf,cli.nome,cli.matricula,c.id_contrato,c.nome_convenio,c.ds_produto,
-          c.valor_principal,c.valor_parcela,c.prazo,c.parcelas_pagas,c.parcelas_restantes].join(';'));
-      });
-    });
-    var blob = new Blob([linhas.join('\n')], {type:'text/csv;charset=utf-8;'});
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'higienizacao_filtrado.csv';
-    a.click();
-  }
-
-  // Carregar resumo ao entrar em Oportunidades
-  setTimeout(function() { carregarHigResumo(); }, 1200);
-
-</script>
-</body>
-</html>
+  
