@@ -1010,40 +1010,6 @@ tbody tr:hover{background:rgba(0,0,0,.02)}
     </div>
   </div>
     
-  <div class="page" id="page-segmentos">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div><div style="font-size:14px;font-weight:600">Sub-planilhas Inteligentes</div></div>
-      <button class="btn-green" onclick="adicionarSegmento()">+ Nova Sub-planilha</button>
-    </div>
-    <div id="construtor" style="display:none">
-      <div class="panel" style="margin-bottom:14px;border-color:#1a1a1a">
-        <div style="font-size:12px;font-weight:600;margin-bottom:12px">Configurar Filtros</div>
-        <div style="margin-bottom:10px">
-          <label style="font-size:11px;color:#888;display:block;margin-bottom:4px">Nome da Sub-planilha</label>
-          <input id="seg-nome-inp" type="text" placeholder="Ex: Educacao Safra menos 65 anos" style="width:100%;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:5px;padding:7px 12px;font-size:13px;color:#1a1a1a;outline:none">
-        </div>
-        <div class="filtros-grid">
-          <div class="filtro-bloco"><label>Secretaria</label><select id="f-secretaria"><option value="">Qualquer</option></select></div>
-          <div class="filtro-bloco"><label>Banco / Verba</label><input id="f-banco" type="text" placeholder="Ex: SAFRA, BMG..."></div>
-          <div class="filtro-bloco"><label>Situacao</label><select id="f-situacao-seg"><option value="">Qualquer</option><option value="ATIVO">Ativo</option><option value="FERIAS">Ferias</option><option value="LICENCA">Licenca</option></select></div>
-          <div class="filtro-bloco"><label>Margem Minima (R$)</label><input id="f-margem-min" type="number" placeholder="0" min="0"></div>
-          <div class="filtro-bloco"><label>Margem Maxima (R$)</label><input id="f-margem-max" type="number" placeholder="ilimitado" min="0"></div>
-          <div class="filtro-bloco"><label>Lotacao (contem)</label><input id="f-lotacao" type="text" placeholder="Ex: ESCOLA..."></div>
-        </div>
-        <div id="preview-result" style="display:none" class="seg-result"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-          <button class="btn-sm" onclick="previewSegmento()">Visualizar</button>
-          <button class="btn-ok" onclick="salvarSegmento()">Salvar</button>
-          <button class="btn-green" onclick="exportarSegmento()">Exportar CSV</button>
-          <button class="btn-cancel" onclick="document.getElementById('construtor').style.display='none'" style="margin-left:auto">Cancelar</button>
-        </div>
-      </div>
-    </div>
-    <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Sub-planilhas Salvas</div>
-    <div id="segs-salvos-list"></div>
-  </div>
-
-  <!-- WHATSAPP -->
   <div class="page" id="page-whatsapp">
     <div style="font-size:14px;font-weight:600;margin-bottom:16px">WhatsApp — Bravo Consignado</div>
     <div class="panels" style="margin-bottom:16px">
@@ -2408,7 +2374,7 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
     statusEl.textContent = '⏳ Importando... aguarde (pode levar 1-2 minutos)';
     var fd = new FormData();
     fd.append('file', file);
-    fetch(API + '/higienizacao/importar', {method:'POST', body:fd})
+    fetch(API + '/importar-higienizacao', {method:'POST', body:fd})
       .then(function(r){return r.json();})
       .then(function(d){
         if (d.ok) {
