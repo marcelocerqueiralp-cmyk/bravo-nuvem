@@ -399,30 +399,6 @@ class WebhookPayload(BaseModel):
     cpf: str
     dados: dict
 
-def carregar_contas():
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT dados FROM base_servidores WHERE cpf='__contas__'")
-                row = cur.fetchone()
-                if row: return json.loads(row["dados"])
-    except: pass
-    return [
-        {"id":1,"nome":"BA-SAEB","convenio":"saeb","usuario":"","senha":"","ativo":True},
-        {"id":2,"nome":"BA-SUPREV","convenio":"suprev","usuario":"","senha":"","ativo":True},
-    ]
-
-def salvar_contas(contas):
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            jstr = json.dumps(contas)
-            cur.execute("SELECT id FROM base_servidores WHERE cpf='__contas__'")
-            if cur.fetchone():
-                cur.execute("UPDATE base_servidores SET dados=%s WHERE cpf='__contas__'", (jstr,))
-            else:
-                cur.execute("INSERT INTO base_servidores (cpf,dados) VALUES ('__contas__',%s)", (jstr,))
-        conn.commit()
-
 async def rodar_bots_paralelo(job_id, cpf, operador):
     _job_status[job_id] = {"status":"rodando","logs":[],"dados":None}
     def push(m): _job_status[job_id]["logs"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {m}")
@@ -476,12 +452,6 @@ def historico_importacoes():
             cur.execute("SELECT * FROM historico_importacoes ORDER BY criado DESC LIMIT 50")
             return [dict(r) for r in cur.fetchall()]
 
-@app.get("/colunas")
-def listar_colunas():
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM colunas_cadastradas ORDER BY ordem")
-            return [dict(r) for r in cur.fetchall()]
 
 @app.get("/base/todos")
 def base_todos(limit: int = 50000, offset: int = 0):
@@ -588,33 +558,12 @@ def buscar_cliente(cpf: str):
             if c in base: base[c] = limpar_valor(base[c])
     return {"cliente":dict(cliente) if cliente else None,"historico":[dict(r) for r in historico],"base":base}
 
-@app.get("/contas")
-def listar_contas(): return carregar_contas()
 
-@app.post("/contas")
-def salvar_contas_endpoint(contas: list):
-    salvar_contas(contas)
-    return {"ok":True,"mensagem":f"{len(contas)} contas salvas."}
 
-@app.put("/contas/{conta_id}")
-def atualizar_conta(conta_id: int, dados: dict):
-    contas = carregar_contas()
-    for c in contas:
-        if c["id"] == conta_id: c.update(dados); break
-    else:
-        contas.append({**dados,"id":conta_id})
-    salvar_contas(contas)
-    return {"ok":True}
 
 @app.get("/oportunidades")
 def get_oportunidades(): return _oportunidades_cache
 
-@app.get("/oportunidades/alertas")
-def get_alertas():
-    global _alertas_pendentes
-    alertas = _alertas_pendentes.copy()
-    _alertas_pendentes = []
-    return alertas
 
 @app.post("/oportunidades/analisar")
 def forcar_analise():
@@ -647,163 +596,6 @@ def listar_oportunidade(tipo: str):
     resultado.sort(key=lambda x: float(x.get("MARGEM_DISPONIVEL",0)), reverse=True)
     return resultado
 
-@app.post("/webhook")
-def receber_webhook(payload: WebhookPayload):
-    cpf = limpar_cpf(payload.cpf)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("INSERT INTO webhook_payloads (cpf,origem,payload) VALUES (%s,%s,%s)",
-                (cpf,payload.origem,json.dumps(payload.dados)))
-        conn.commit()
-    return {"ok":True}
-
-@app.get("/webhook/historico/todos")
-def historico_webhook_todos():
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM webhook_payloads ORDER BY criado DESC LIMIT 50")
-            return [dict(r) for r in cur.fetchall()]
-
-@app.get("/agendador/status")
-def agendador_status(): return {"ok":True,"mensagem":"Use importacao via CSV."}
-
-@app.post("/agendador/forcar")
-def forcar_importacao(): return {"ok":True,"mensagem":"Use importacao via CSV."}
-
-# ═══════════════════════════════════════════════════════════════
-# SISTEMA DE LICENÇAS
-# ═══════════════════════════════════════════════════════════════
-
-class GerarLicencaRequest(BaseModel):
-    cliente_nome : str
-    cliente_fone : Optional[str] = ""
-    dias         : int = 30
-    observacao   : Optional[str] = ""
-    master_key   : str
-
-class ValidarLicencaRequest(BaseModel):
-    chave       : str
-    hardware_id : str
-
-class RenovarLicencaRequest(BaseModel):
-    chave      : str
-    dias_extra : int = 30
-    master_key : str
-
-def verificar_master(key: str):
-    if key != LICENCA_MASTER_KEY:
-        raise HTTPException(403, "Chave mestra invalida.")
-
-def gerar_chave_unica() -> str:
-    parte = lambda: secrets.token_hex(2).upper()
-    return f"BRAVO-{parte()}-{parte()}-{parte()}"
-
-@app.post("/licenca/gerar")
-def gerar_licenca(req: GerarLicencaRequest):
-    verificar_master(req.master_key)
-    chave = gerar_chave_unica()
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO licencas (chave,cliente_nome,cliente_fone,dias,status,observacao)
-                VALUES (%s,%s,%s,%s,'pendente',%s)
-            """, (chave, req.cliente_nome, req.cliente_fone, req.dias, req.observacao))
-        conn.commit()
-    return {"ok":True,"chave":chave,"cliente":req.cliente_nome,"dias":req.dias,
-            "mensagem":f"Chave gerada! Envie ao cliente: {chave}"}
-
-@app.post("/licenca/validar")
-def validar_licenca(req: ValidarLicencaRequest):
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM licencas WHERE chave=%s", (req.chave.strip().upper(),))
-            lic = cur.fetchone()
-    if not lic:
-        return {"valida":False,"motivo":"Chave nao encontrada."}
-    if lic["status"] == "bloqueada":
-        return {"valida":False,"motivo":"Licenca bloqueada. Contate o suporte."}
-    if lic["status"] == "pendente":
-        agora  = datetime.now()
-        expira = agora + timedelta(days=lic["dias"])
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    UPDATE licencas SET status='ativa', hardware_id=%s,
-                        ativada_em=%s, expira_em=%s, ultimo_acesso=%s
-                    WHERE chave=%s
-                """, (req.hardware_id,
-                      agora.strftime("%d/%m/%Y %H:%M:%S"),
-                      expira.strftime("%d/%m/%Y %H:%M:%S"),
-                      agora.strftime("%d/%m/%Y %H:%M:%S"),
-                      req.chave.strip().upper()))
-            conn.commit()
-        return {"valida":True,"motivo":"Licenca ativada!","cliente":lic["cliente_nome"],
-                "dias_restantes":lic["dias"],"expira_em":expira.strftime("%d/%m/%Y"),"primeira_vez":True}
-    if lic["hardware_id"] and lic["hardware_id"] != req.hardware_id:
-        return {"valida":False,"motivo":"Licenca vinculada a outro computador.\nContate o suporte para transferir."}
-    try:
-        expira_dt = datetime.strptime(lic["expira_em"], "%d/%m/%Y %H:%M:%S")
-    except:
-        expira_dt = datetime.strptime(lic["expira_em"][:10], "%d/%m/%Y")
-    agora = datetime.now()
-    if agora > expira_dt:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("UPDATE licencas SET status='vencida' WHERE chave=%s", (req.chave,))
-            conn.commit()
-        dias_v = (agora - expira_dt).days
-        return {"valida":False,"motivo":f"Licenca vencida ha {dias_v} dia(s).\nContate o suporte para renovar.","vencida":True}
-    dias_rest = (expira_dt - agora).days
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE licencas SET ultimo_acesso=%s WHERE chave=%s",
-                (agora.strftime("%d/%m/%Y %H:%M:%S"), req.chave))
-        conn.commit()
-    aviso = f"Sua licenca vence em {dias_rest} dia(s)! Renove com o suporte." if dias_rest <= 5 else ""
-    return {"valida":True,"motivo":"Licenca valida.","cliente":lic["cliente_nome"],
-            "dias_restantes":dias_rest,"expira_em":expira_dt.strftime("%d/%m/%Y"),"aviso":aviso,"primeira_vez":False}
-
-@app.post("/licenca/renovar")
-def renovar_licenca(req: RenovarLicencaRequest):
-    verificar_master(req.master_key)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM licencas WHERE chave=%s", (req.chave,))
-            lic = cur.fetchone()
-    if not lic: raise HTTPException(404, "Chave nao encontrada.")
-    agora = datetime.now()
-    try:
-        base = datetime.strptime(lic["expira_em"], "%d/%m/%Y %H:%M:%S")
-        if base < agora: base = agora
-    except:
-        base = agora
-    nova_expira = base + timedelta(days=req.dias_extra)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE licencas SET expira_em=%s, status='ativa', dias=dias+%s WHERE chave=%s",
-                (nova_expira.strftime("%d/%m/%Y %H:%M:%S"), req.dias_extra, req.chave))
-        conn.commit()
-    return {"ok":True,"chave":req.chave,"cliente":lic["cliente_nome"],
-            "dias_extra":req.dias_extra,"nova_expira":nova_expira.strftime("%d/%m/%Y"),
-            "mensagem":f"+{req.dias_extra} dias. Expira em {nova_expira.strftime('%d/%m/%Y')}"}
-
-@app.get("/licenca/listar")
-def listar_licencas(master_key: str):
-    verificar_master(master_key)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT chave,cliente_nome,cliente_fone,dias,ativada_em,expira_em,status,ultimo_acesso,observacao FROM licencas ORDER BY criado_em DESC")
-            return [dict(r) for r in cur.fetchall()]
-
-@app.post("/licenca/bloquear")
-def bloquear_licenca(chave: str, master_key: str):
-    verificar_master(master_key)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE licencas SET status='bloqueada' WHERE chave=%s", (chave,))
-        conn.commit()
-    return {"ok":True,"mensagem":f"Licenca {chave} bloqueada."}
-
 # ═══════════════════════════════════════════════════════════════
 # FRONTEND
 # ═══════════════════════════════════════════════════════════════
@@ -821,69 +613,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
-# ═══════════════════════════════════════════════════════════════
-# FILA DE CONSULTA DE MARGEM
-# ═══════════════════════════════════════════════════════════════
-
-class FilaMargemRequest(BaseModel):
-    cpf: str
-
-@app.post("/margem/solicitar")
-def solicitar_margem(req: FilaMargemRequest):
-    cpf = limpar_cpf(req.cpf)
-    if not cpf:
-        raise HTTPException(400, "CPF inválido.")
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM consultas_margem_fila WHERE cpf=%s AND status IN ('pendente','processando')", (cpf,))
-            if cur.fetchone():
-                return {"ok": True, "mensagem": "Já na fila.", "cpf": cpf}
-            cur.execute("INSERT INTO consultas_margem_fila (cpf, status) VALUES (%s, 'pendente')", (cpf,))
-        conn.commit()
-    return {"ok": True, "mensagem": "CPF adicionado à fila.", "cpf": cpf}
-
-@app.get("/margem/resultado/{cpf}")
-def resultado_margem(cpf: str):
-    cpf = limpar_cpf(cpf)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT status FROM consultas_margem_fila WHERE cpf=%s ORDER BY criado_em DESC LIMIT 1", (cpf,))
-            fila = cur.fetchone()
-            cur.execute("SELECT * FROM consultas_margem WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1", (cpf,))
-            res = cur.fetchone()
-    status_fila = fila["status"] if fila else "nenhuma"
-    if res:
-        return {"ok": True, "status_fila": status_fila, "resultado": dict(res)}
-    return {"ok": False, "status_fila": status_fila, "resultado": None}
-
-@app.get("/margem/dashboard")
-def dashboard_margem():
-    try:
-        with get_db() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) as n FROM consultas_margem")
-                total = cur.fetchone()["n"]
-                cur.execute("SELECT COUNT(*) as n FROM consultas_margem WHERE status='ok'")
-                ok = cur.fetchone()["n"]
-                cur.execute("SELECT COUNT(*) as n FROM consultas_margem_fila WHERE status='pendente'")
-                pendentes = cur.fetchone()["n"]
-                cur.execute("""
-                    SELECT cpf, servidor, secretaria, situacao,
-                           margem_real, margem_livre, convenio, status, consultado_em
-                    FROM consultas_margem ORDER BY consultado_em DESC LIMIT 20
-                """)
-                recentes = [dict(r) for r in cur.fetchall()]
-        return {"total": total, "sucesso": ok, "pendentes": pendentes,
-                "cpfs_consultados_hoje": ok, "ultimas_consultas": recentes}
-    except:
-        return {"total":0,"sucesso":0,"pendentes":0,"cpfs_consultados_hoje":0,"ultimas_consultas":[]}
-
-@app.get("/margem/ultima/{cpf}")
-def ultima_margem(cpf: str):
-    cpf = limpar_cpf(cpf)
-    with get_db() as conn:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM consultas_margem WHERE cpf=%s ORDER BY consultado_em DESC LIMIT 1", (cpf,))
-            row = cur.fetchone()
-    if not row: raise HTTPException(404, "Sem consulta.")
-    return dict(row)
