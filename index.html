@@ -2572,10 +2572,33 @@ function irPara(pg, el) {
   if (pg === 'whatsapp') { carregarStatusWA(); carregarLogBot(); }
   if (pg === 'leads') carregarLeads();
   if (pg === 'oportunidades') {
-    // SEMPRE carregar base se vazia
+    // Mostrar cards imediatamente com dados disponíveis
+    setTimeout(function() {
+      ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
+      if (todosServidores && todosServidores.length > 0) {
+        opAtualizarCards();
+        opCalcularMargemGeral();
+      }
+    }, 100);
+    // Carregar base se vazia
     if ((!todosServidores || todosServidores.length === 0) && typeof carregarBase === 'function') {
       carregarBase();
     }
+    // Re-calcular quando base atualizar
+    var opT = 0;
+    var opUlt = todosServidores ? todosServidores.length : 0;
+    var opIv = setInterval(function() {
+      opT++;
+      var novoLen = todosServidores ? todosServidores.length : 0;
+      if (novoLen > opUlt) {
+        opUlt = novoLen;
+        opAtualizarCards();
+        opCalcularMargemGeral();
+        ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
+      }
+      if (opT > 200) clearInterval(opIv);
+    }, 500);
+  }
     // Calcular cards imediatamente (com fallback)
     setTimeout(function() {
       ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
