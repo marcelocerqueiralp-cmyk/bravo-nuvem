@@ -805,32 +805,30 @@ tbody tr:hover{background:var(--bg3)}
         </div>
       </div>
 
-      <!-- Status dos Robôs -->
+      <!-- Card Higienização Safra -->
       <div class="db-card">
         <div class="db-card-title">
-          Robôs
-          <a onclick="irPara('robos',document.getElementById('nav-robos'))" style="cursor:pointer">Gerenciar →</a>
+          🔬 Higienização Safra
+          <a onclick="abrirModalHig('')" style="cursor:pointer">Ver contratos →</a>
         </div>
-        <div class="db-robo-row">
-          <div><div class="db-robo-name">ConsigLog Bot</div><div class="db-robo-sub">Consulta automática de margem</div></div>
-          <span class="db-status-on"><span style="width:6px;height:6px;border-radius:50%;background:#2e7d32;display:inline-block"></span>Ativo</span>
+        <div style="background:linear-gradient(135deg,#1e3a8a,#1d4ed8);border-radius:10px;padding:14px;color:#fff;margin-bottom:12px">
+          <div style="font-size:10px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Gov. Bahia · Consignado</div>
+          <div style="font-size:22px;font-weight:900" id="db-hig-cpfs">—</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px" id="db-hig-sub">Não importado ainda</div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <span style="background:rgba(255,255,255,.15);border-radius:99px;padding:2px 9px;font-size:10px;font-weight:600" id="db-hig-novo">NOVO: —</span>
+            <span style="background:rgba(255,255,255,.15);border-radius:99px;padding:2px 9px;font-size:10px;font-weight:600" id="db-hig-refin">REFIN: —</span>
+          </div>
         </div>
-        <div class="db-robo-row">
-          <div><div class="db-robo-name">Margem em Lote</div><div class="db-robo-sub">Processamento em batch</div></div>
-          <span class="db-status-on"><span style="width:6px;height:6px;border-radius:50%;background:#2e7d32;display:inline-block"></span>Ativo</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border2)">
+          <span style="color:var(--text3)">Total Principal</span>
+          <span style="font-weight:700;color:var(--accent)" id="db-hig-total">—</span>
         </div>
-        <div class="db-robo-row">
-          <div><div class="db-robo-name">INSS Scraper</div><div class="db-robo-sub">Raspador de dados INSS</div></div>
-          <span class="db-status-wrn">⚠ Aguardando</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0">
+          <span style="color:var(--text3)">Contratos</span>
+          <span style="font-weight:700;color:var(--text)" id="db-hig-contratos">—</span>
         </div>
-        <div class="db-robo-row">
-          <div><div class="db-robo-name">Webhook API</div><div class="db-robo-sub">Integração externa</div></div>
-          <span class="db-status-off">Inativo</span>
-        </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0">
-          <div style="font-size:10px;color:#9ca3af;margin-bottom:4px">Última sincronização Consiglog</div>
-          <div style="font-size:12px;font-weight:600;color:#2e7d32" id="db-sync-time">✓ Hoje — Sincronizado</div>
-        </div>
+        <button onclick="abrirModalHig('')" style="margin-top:10px;width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:var(--radius-xs);padding:8px;font-size:11px;font-weight:600;cursor:pointer">Ver Contratos Safra →</button>
       </div>
 
     </div>
@@ -1042,7 +1040,8 @@ tbody tr:hover{background:var(--bg3)}
     document.getElementById('db-op-livre').textContent = livre.toLocaleString('pt-BR');
     document.getElementById('db-op-refin').textContent = refin.toLocaleString('pt-BR');
     document.getElementById('db-sub-data').textContent = total.toLocaleString('pt-BR') + ' servidores · Última atualização: ' + new Date().toLocaleString('pt-BR');
-    document.getElementById('db-sync-time').textContent = '✓ ' + new Date().toLocaleString('pt-BR') + ' — Sincronizado';
+    // Atualizar card higienização no dashboard
+    carregarHigResumoDash();
   }
 
   // Atualizar hora
@@ -2742,6 +2741,25 @@ var OP_COEFS = {"safra": {"48": 0.04128, "60": 0.03504, "72": 0.02994, "84": 0.0
       badge.textContent = _oportunidades.quente;
     }
   }
+
+
+  async function carregarHigResumoDash() {
+    try {
+      var d = await fetch(API + '/higienizacao/resumo').then(r => r.json());
+      var fmt = n => n ? n.toLocaleString('pt-BR') : '—';
+      var el = id => document.getElementById(id);
+      if (el('db-hig-cpfs')) el('db-hig-cpfs').textContent = fmt(d.cpfs) + ' CPFs';
+      if (el('db-hig-sub')) el('db-hig-sub').textContent = d.contratos ? fmt(d.contratos) + ' contratos · ' + (d.ultima_consultado||'') : 'Não importado ainda';
+      if (el('db-hig-novo')) el('db-hig-novo').textContent = 'NOVO: ' + fmt(d.novo);
+      if (el('db-hig-refin')) el('db-hig-refin').textContent = 'REFIN: ' + fmt(d.refin);
+      if (el('db-hig-total')) {
+        var total = d.total_principal || 0;
+        el('db-hig-total').textContent = total >= 1000000 ? 'R$ ' + (total/1000000).toFixed(1) + 'M' : 'R$ ' + fmt(Math.round(total));
+      }
+      if (el('db-hig-contratos')) el('db-hig-contratos').textContent = fmt(d.contratos);
+    } catch(e) {}
+  }
+  setTimeout(carregarHigResumoDash, 1500);
 
 </script>
 
