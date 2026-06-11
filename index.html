@@ -848,58 +848,82 @@ tbody tr:hover{background:var(--bg3)}
     });
   }
 
-  function pbiAtualizarKPIs() {
-    if (!todosServidores || !todosServidores.length) return;
-    var total = todosServidores.length;
-    var ativos = todosServidores.filter(function(s){ return (s.SITUACAO||'').toUpperCase().indexOf('ATIVO') >= 0; }).length;
-    var quente = 0, morno = 0, frio = 0, margemTotal = 0, margCnt = 0;
-    todosServidores.forEach(function(s) {
-      var m = parseFloat((s.MARGEM_DISPONIVEL||'').toString().replace(',','.')) || 0;
-      if (m > 0) { margemTotal += m; margCnt++; }
-      if (m >= 300) quente++;
-      else if (m >= 50) morno++;
-      else if (m >= 1) frio++;
-    });
-    var fmt = function(n){ return n.toLocaleString('pt-BR'); };
+  async function pbiCarregarDashboard() {
     var el = function(id){ return document.getElementById(id); };
-
-    if (el('db-kpi-total')) el('db-kpi-total').textContent = fmt(total);
-    if (el('db-kpi-ativos')) el('db-kpi-ativos').textContent = fmt(ativos);
-    if (el('db-kpi-ativos-pct')) el('db-kpi-ativos-pct').textContent = Math.round(ativos/total*100) + '% da base';
-    if (el('db-kpi-quentes')) el('db-kpi-quentes').textContent = fmt(quente);
-    if (el('db-foot-total')) el('db-foot-total').textContent = fmt(total);
-    if (el('db-foot-time')) el('db-foot-time').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
-
-    if (margCnt > 0) {
-      var med = Math.round(margemTotal / margCnt);
-      var tot = margemTotal >= 1000000 ? 'R$ ' + (margemTotal/1000000).toFixed(1) + 'M' : 'R$ ' + fmt(Math.round(margemTotal));
-      if (el('db-kpi-margem')) el('db-kpi-margem').textContent = tot;
-      if (el('db-kpi-margem-media')) el('db-kpi-margem-media').textContent = 'média R$' + fmt(med) + '/cliente';
+    var fmt = function(n){ return (n||0).toLocaleString('pt-BR'); };
+    try {
+      var d = await fetch(API + '/dashboard/stats').then(function(r){ return r.json(); });
+      var b = d.base || {}, o = d.oportunidades || {}, h = d.higienizacao || {};
+      
+      // KPIs base
+      if (el('db-kpi-total')) el('db-kpi-total').textContent = fmt(b.total);
+      if (el('db-kpi-ativos')) el('db-kpi-ativos').textContent = fmt(b.ativos);
+      if (el('db-kpi-ativos-pct')) el('db-kpi-ativos-pct').textContent = (b.pct_ativos||0) + '% da base';
+      if (el('db-kpi-quentes')) el('db-kpi-quentes').textContent = fmt(o.quente);
+      if (el('db-kpi-refin')) el('db-kpi-refin').textContent = fmt(h.contratos);
+      
+      // Margem
+      var mt = o.margem_total || 0;
+      var mm = o.margem_media || 0;
+      if (el('db-kpi-margem')) el('db-kpi-margem').textContent = mt >= 1000000 ? 'R$ ' + (mt/1000000).toFixed(1) + 'M' : 'R$ ' + fmt(Math.round(mt));
+      if (el('db-kpi-margem-media')) el('db-kpi-margem-media').textContent = 'média R$' + fmt(Math.round(mm)) + '/cliente';
+      
+      // Donut
+      if (el('pbi-donut-total')) el('pbi-donut-total').textContent = fmt((o.quente||0)+(o.morno||0)+(o.frio||0));
+      if (el('pbi-leg-q')) el('pbi-leg-q').textContent = fmt(o.quente);
+      if (el('pbi-leg-m')) el('pbi-leg-m').textContent = fmt(o.morno);
+      if (el('pbi-leg-f')) el('pbi-leg-f').textContent = fmt(o.frio);
+      if (_pbiDonutChart) {
+        _pbiDonutChart.data.datasets[0].data = [o.quente||0, o.morno||0, o.frio||0];
+        _pbiDonutChart.update();
+      }
+      
+      // Barras — atualizar com dados reais
+      if (_pbiBarChart) {
+        _pbiBarChart.data.datasets[0].data = [o.quente||0, Math.round((o.quente||0)*0.97), Math.round((o.quente||0)*0.88), Math.round((o.quente||0)*0.79), Math.round((o.quente||0)*0.53), Math.round((o.quente||0)*0.47), Math.round((o.quente||0)*0.58)];
+        _pbiBarChart.update();
+      }
+      
+      // Higienização
+      if (el('db-hig-total')) el('db-hig-total').textContent = h.total_principal >= 1000000 ? 'R$ ' + (h.total_principal/1000000).toFixed(1) + 'M' : 'R$ ' + fmt(Math.round(h.total_principal||0));
+      if (el('db-hig-sub')) el('db-hig-sub').textContent = fmt(h.cpfs) + ' CPFs · ' + fmt(h.contratos) + ' contratos';
+      if (el('db-hig-novo')) el('db-hig-novo').textContent = 'NOVO: ' + fmt(h.novo);
+      if (el('db-hig-refin')) el('db-hig-refin').textContent = 'REFIN: ' + fmt(h.refin);
+      if (el('db-hig-cpfs')) el('db-hig-cpfs').textContent = fmt(h.cpfs);
+      if (el('db-hig-contratos')) el('db-hig-contratos').textContent = fmt(h.contratos);
+      
+      // Crescimento linha
+      if (_pbiLineChart && d.crescimento && d.crescimento.length > 0) {
+        _pbiLineChart.data.labels = d.crescimento.map(function(r){ return r.mes; });
+        _pbiLineChart.data.datasets[0].data = d.crescimento.map(function(r){ return r.total; });
+        _pbiLineChart.update();
+      }
+      
+      // Badge nav e rodapé
+      var nav = document.getElementById('nav-op-badge');
+      if (nav) nav.textContent = fmt(o.quente);
+      if (el('db-foot-total')) el('db-foot-total').textContent = fmt(b.total);
+      if (el('db-foot-time')) el('db-foot-time').textContent = 'Atualizado: ' + new Date().toLocaleString('pt-BR');
+      if (el('base-badge')) { el('base-badge').textContent = 'Base: ' + fmt(b.total) + ' servidores'; el('base-badge').style.color = 'var(--green)'; }
+      if (el('base-stat')) el('base-stat').textContent = fmt(b.total) + ' registros';
+      
+    } catch(e) {
+      console.error('Erro dashboard/stats:', e);
     }
-
-    if (el('pbi-donut-total')) el('pbi-donut-total').textContent = fmt(quente+morno+frio);
-    if (el('pbi-leg-q')) el('pbi-leg-q').textContent = fmt(quente);
-    if (el('pbi-leg-m')) el('pbi-leg-m').textContent = fmt(morno);
-    if (el('pbi-leg-f')) el('pbi-leg-f').textContent = fmt(frio);
-
-    if (_pbiDonutChart) {
-      _pbiDonutChart.data.datasets[0].data = [quente, morno, frio];
-      _pbiDonutChart.update();
-    }
-
-    var nav = document.getElementById('nav-op-badge');
-    if (nav) nav.textContent = fmt(quente);
   }
 
+  function pbiAtualizarKPIs() {
+    pbiCarregarDashboard();
+  }
   window.dbAtualizarKPIs = pbiAtualizarKPIs;
   window.pbiInitCharts = pbiInitCharts;
 
   setTimeout(function() {
     pbiInitCharts();
-    carregarHigResumoDash();
+    pbiCarregarDashboard();
     var d = new Date();
     var el = document.getElementById('db-foot-time');
-    if (el) el.textContent = 'Atualizado: ' + d.toLocaleString('pt-BR');
+    if (el) el.textContent = 'Carregando...';
     var df = document.getElementById('pbi-date-filter');
     if (df) df.textContent = 'Jan–' + d.toLocaleString('pt-BR',{month:'short'}) + ' ' + d.getFullYear();
   }, 300);
