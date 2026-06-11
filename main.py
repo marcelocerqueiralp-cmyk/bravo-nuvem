@@ -613,3 +613,87 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
+@app.get("/dashboard/stats")
+async def dashboard_stats():
+    """Retorna todos os dados do dashboard em uma única chamada rápida"""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Total e situações
+            cur.execute("""
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE dados->>'SITUACAO' ILIKE '%ATIVO%') as ativos,
+                    COUNT(*) FILTER (WHERE dados->>'SITUACAO' ILIKE '%INATIVO%' OR dados->>'SITUACAO' ILIKE '%FALECIDO%') as inativos
+                FROM base_servidores WHERE cpf != '__contas__'
+            """)
+            base = cur.fetchone()
+            
+            # Oportunidades por faixa de margem
+            cur.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float >= 300) as quente,
+                    COUNT(*) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float >= 50 AND (dados->>'MARGEM_DISPONIVEL')::float < 300) as morno,
+                    COUNT(*) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float >= 1 AND (dados->>'MARGEM_DISPONIVEL')::float < 50) as frio,
+                    COUNT(*) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float > 0) as com_margem,
+                    COALESCE(SUM((dados->>'MARGEM_DISPONIVEL')::float) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float > 0), 0) as margem_total,
+                    COALESCE(AVG((dados->>'MARGEM_DISPONIVEL')::float) FILTER (WHERE (dados->>'MARGEM_DISPONIVEL')::float > 0), 0) as margem_media
+                FROM base_servidores 
+                WHERE cpf != '__contas__'
+                AND (dados->>'MARGEM_DISPONIVEL') != '' AND (dados->>'MARGEM_DISPONIVEL') IS NOT NULL
+            """)
+            oport = cur.fetchone()
+            
+            # Higienização resumo
+            cur.execute("""
+                SELECT 
+                    COUNT(DISTINCT cpf) as cpfs,
+                    COUNT(*) as contratos,
+                    COUNT(*) FILTER (WHERE ds_produto = 'NOVO') as novo,
+                    COUNT(*) FILTER (WHERE ds_produto = 'REFIN') as refin,
+                    COALESCE(SUM(valor_principal), 0) as total_principal
+                FROM higienizacao_safra
+            """)
+            hig = cur.fetchone()
+            
+            # Crescimento mensal (últimos 6 meses simulado com importações)
+            cur.execute("""
+                SELECT 
+                    to_char(importado_em::timestamp, 'Mon') as mes,
+                    COUNT(*) as total
+                FROM base_servidores
+                WHERE cpf != '__contas__'
+                GROUP BY to_char(importado_em::timestamp, 'Mon'), 
+                         date_trunc('month', importado_em::timestamp)
+                ORDER BY date_trunc('month', importado_em::timestamp)
+                LIMIT 6
+            """)
+            crescimento = cur.fetchall()
+
+    total = base['total'] if base else 0
+    ativos = base['ativos'] if base else 0
+    
+    return {
+        "base": {
+            "total": total,
+            "ativos": ativos,
+            "inativos": base['inativos'] if base else 0,
+            "pct_ativos": round(ativos/total*100, 1) if total > 0 else 0
+        },
+        "oportunidades": {
+            "quente": oport['quente'] if oport else 0,
+            "morno": oport['morno'] if oport else 0,
+            "frio": oport['frio'] if oport else 0,
+            "com_margem": oport['com_margem'] if oport else 0,
+            "margem_total": float(oport['margem_total']) if oport else 0,
+            "margem_media": round(float(oport['margem_media']), 2) if oport else 0
+        },
+        "higienizacao": {
+            "cpfs": hig['cpfs'] if hig else 0,
+            "contratos": hig['contratos'] if hig else 0,
+            "novo": hig['novo'] if hig else 0,
+            "refin": hig['refin'] if hig else 0,
+            "total_principal": float(hig['total_principal']) if hig else 0
+        },
+        "crescimento": [{"mes": r['mes'], "total": r['total']} for r in crescimento]
+    }
+
