@@ -2802,27 +2802,26 @@ function irPara(pg, el) {
   document.getElementById('page-' + pg).classList.add('active');
   var titles = {dashboard:'Dashboard',base:'Gestao da Base',importacoes:'Importacoes',segmentos:'Sub-planilhas',oportunidades:'Oportunidades',whatsapp:'WhatsApp',leads:'Leads',robos:'Central de Robos',config:'Configuracoes'};
   document.getElementById('topbar-page').textContent = titles[pg] || pg;
-  if (pg === 'base') carregarBase();
+  if (pg === 'base') {
+    carregarBase();
+  }
   if (pg === 'importacoes') carregarHistImport();
-  if (pg === 'segmentos') { renderSegmentosSalvos(); if (!todosServidores.length) carregarBase(); }
-  if (pg === 'robos') carregarAgendador();
   if (pg === 'config') carregarInfoSistema();
-  if (pg === 'whatsapp') { carregarStatusWA(); carregarLogBot(); }
-  if (pg === 'leads') carregarLeads();
+  if (pg === 'whatsapp') { if(typeof carregarStatusWA==='function') carregarStatusWA(); if(typeof carregarLogBot==='function') carregarLogBot(); }
+  if (pg === 'leads') { if(typeof carregarLeads==='function') carregarLeads(); }
   if (pg === 'oportunidades') {
-    // Calcular cards imediatamente
-    setTimeout(function() {
-      ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
-      if (todosServidores && todosServidores.length > 0) {
+    // Sempre carregar base se vazia
+    if (!todosServidores || todosServidores.length === 0) {
+      carregarBase();
+    } else {
+      // Base já carregada — calcular imediatamente
+      setTimeout(function() {
         opAtualizarCards();
         opCalcularMargemGeral();
-      }
-    }, 200);
-    // Carregar base se vazia
-    if (!todosServidores || todosServidores.length === 0) {
-      if (typeof carregarBase === 'function') carregarBase();
+        ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
+      }, 100);
     }
-    // Atualizar quando base crescer
+    // Atualizar conforme base vai chegando
     var _opLen = todosServidores ? todosServidores.length : 0;
     var _opIv = setInterval(function() {
       var newLen = todosServidores ? todosServidores.length : 0;
@@ -2832,8 +2831,8 @@ function irPara(pg, el) {
         opCalcularMargemGeral();
         ['safra','digio','pan','daycoval','inter','industrial','bb','santander'].forEach(function(b){ opRecalcular(b); });
       }
-    }, 1000);
-    setTimeout(function(){ clearInterval(_opIv); }, 120000);
+    }, 1500);
+    setTimeout(function(){ clearInterval(_opIv); }, 180000);
   }
     }, 100);
     // Carregar base se vazia
